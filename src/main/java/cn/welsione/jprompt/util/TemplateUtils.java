@@ -39,10 +39,18 @@ public final class TemplateUtils {
     }
 
     /**
-     * 转义 replacement 字符串中的特殊字符
+     * 转义 replacement 字符串中的特殊字符（用于 appendReplacement）
      */
     public static String escapeReplacement(String value) {
         return value.replace("\\", "\\\\").replace("$", "\\$");
+    }
+
+    /**
+     * 安全转换为字符串（用于直接字符串拼接）
+     * null 值返回空字符串
+     */
+    public static String toStringOrEmpty(Object value) {
+        return value != null ? value.toString() : "";
     }
 
     /**

@@ -88,6 +88,7 @@ class ReflectiveTemplateEngineTest {
 
     @Test
     void testRenderWithMissingField() {
+        // TestData 没有 hobby 字段，所以 {{hobby}} 应该被保留
         String template = "Hello, {{name}}! Your hobby is {{hobby}}.";
         TestData data = new TestData();
         data.setName("Alice");
@@ -95,7 +96,8 @@ class ReflectiveTemplateEngineTest {
 
         String result = templateEngine.render(template, data);
 
-        assertEquals("Hello, Alice! Your hobby is .", result);
+        // 缺失的占位符应保留原样
+        assertEquals("Hello, Alice! Your hobby is {{hobby}}.", result);
     }
 
     @Test
@@ -124,7 +126,8 @@ class ReflectiveTemplateEngineTest {
 
     @Test
     void testDefaultValueWhenValueExists() {
-        String template = "Title: {{title!\"无标题\"}}";
+        // 使用 name 字段，因为 TestData 没有 title 字段
+        String template = "Title: {{name!\"无标题\"}}";
         TestData data = new TestData();
         data.setName("我的小说");
 
