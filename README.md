@@ -77,6 +77,52 @@ String rendered = userTemplate.build(data);
 
 支持嵌套属性：`{{user.name}}`、`{{address.city}}`
 
+### 默认值语法
+
+占位符不存在时使用默认值：
+
+```
+{{name!"匿名用户"}}
+```
+
+### 块级标签
+
+支持条件判断和循环迭代：
+
+```
+{{#if hasPermission}}有权限{{/if}}
+{{#unless isEmpty}}有内容{{/unless}}
+{{#each items as item}}{{item.name}}{{/each}}
+{{#eq status "active"}}在线{{/eq}}
+```
+
+### 函数调用
+
+支持内置函数：
+
+```
+{{upperCase name}}    -> 大写
+{{lowerCase name}}    -> 小写
+{{capitalize name}}   -> 首字母大写
+{{length items}}      -> 集合长度
+{{formatDate date "yyyy-MM-dd"}}  -> 日期格式化
+```
+
+### 表达式运算
+
+支持基本算术运算：
+
+```
+{{index + 1}}   -> 加法
+{{count - 1}}   -> 减法
+{{price * 2}}   -> 乘法
+{{total / 2}}   -> 除法
+```
+
+### 缺失占位符
+
+当占位符在模板中但数据中不存在时，保留原占位符格式 `{{placeholder}}`。
+
 ## API
 
 ### JPrompt
@@ -114,7 +160,8 @@ jprompt/
 │   ├── TemplateEngine.java               # 引擎接口
 │   └── ReflectiveTemplateEngine.java     # 基于反射的模板引擎
 └── util/
-    └── PlaceholderUtils.java # 占位符处理工具
+    ├── PlaceholderUtils.java # 占位符处理工具
+    └── TemplateUtils.java    # 模板工具类
 ```
 
 ## License
