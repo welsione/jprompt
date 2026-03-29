@@ -143,12 +143,13 @@ public final class PlaceholderUtils {
             return template.substring(lastEnd);
         }
 
-        String blockContent = innerTemplate.substring(0, innerTemplate.lastIndexOf("{{/if}}"));
-        String endTag = innerTemplate.substring(innerTemplate.lastIndexOf("{{/if}}") + 6);
+        String[] parts = innerTemplate.split("\n", 2);
+        String blockContent = parts[0];
+        String endTag = parts[1];
 
         // 评估条件
         Object condValue = evaluateExpression(condition, placeholders, functions);
-        boolean condResult = isTruthy(condValue);
+        boolean condResult = TemplateUtils.isTruthy(condValue);
 
         if (condResult) {
             return blockContent + endTag;
@@ -175,12 +176,13 @@ public final class PlaceholderUtils {
             return template.substring(lastEnd);
         }
 
-        String blockContent = innerTemplate.substring(0, innerTemplate.lastIndexOf("{{/unless}}"));
-        String endTag = innerTemplate.substring(innerTemplate.lastIndexOf("{{/unless}}") + 10);
+        String[] parts = innerTemplate.split("\n", 2);
+        String blockContent = parts[0];
+        String endTag = parts[1];
 
         // unless 与 if 相反
         Object condValue = evaluateExpression(condition, placeholders, functions);
-        boolean condResult = isTruthy(condValue);
+        boolean condResult = TemplateUtils.isTruthy(condValue);
 
         if (!condResult) {
             return blockContent + endTag;
@@ -212,8 +214,9 @@ public final class PlaceholderUtils {
             return template.substring(lastEnd);
         }
 
-        String blockContent = innerTemplate.substring(0, innerTemplate.lastIndexOf("{{/each}}"));
-        String endTag = innerTemplate.substring(innerTemplate.lastIndexOf("{{/each}}") + 8);
+        String[] parts = innerTemplate.split("\n", 2);
+        String blockContent = parts[0];
+        String endTag = parts[1];
 
         // 获取迭代对象
         Object items = resolvePath(itemsPath, placeholders);
@@ -228,6 +231,15 @@ public final class PlaceholderUtils {
             Map<String, Object> iterationContext = new HashMap<>(placeholders);
             iterationContext.put(itemName, item);
             iterationContext.put(itemName + "_index", index);
+
+            // 如果迭代项是 Map，展开其键值到上下文中，便于直接访问
+            if (item instanceof Map) {
+                for (Map.Entry<?, ?> entry : ((Map<?, ?>) item).entrySet()) {
+                    if (entry.getKey() != null) {
+                        iterationContext.put(entry.getKey().toString(), entry.getValue());
+                    }
+                }
+            }
 
             // 递归渲染块内容
             String iterationResult = processSimplePlaceholders(blockContent, iterationContext, functions);
@@ -245,21 +257,22 @@ public final class PlaceholderUtils {
                                          Map<String, TemplateEngine.TemplateFunction> functions,
                                          Matcher blockMatcher, int lastEnd) {
         // 解析 {{#eq a b}} 或 {{#eq a "value"}}
-        String[] parts = expression.split("\\s+", 2);
-        if (parts.length < 2) {
+        String[] exprParts = expression.split("\\s+", 2);
+        if (exprParts.length < 2) {
             return template.substring(lastEnd);
         }
 
-        String left = parts[0];
-        String right = parts[1].replace("\"", "").trim();
+        String left = exprParts[0];
+        String right = exprParts[1].replace("\"", "").trim();
 
         String innerTemplate = findBlockEnd(template, blockMatcher.end(), "/eq");
         if (innerTemplate == null) {
             return template.substring(lastEnd);
         }
 
-        String blockContent = innerTemplate.substring(0, innerTemplate.lastIndexOf("{{/eq}}"));
-        String endTag = innerTemplate.substring(innerTemplate.lastIndexOf("{{/eq}}") + 6);
+        String[] blockParts = innerTemplate.split("\n", 2);
+        String blockContent = blockParts[0];
+        String endTag = blockParts[1];
 
         // 比较两个值
         Object leftValue = evaluateExpression(left, placeholders, functions);
@@ -277,13 +290,15 @@ public final class PlaceholderUtils {
      * 查找块结束标签
      */
     private static String findBlockEnd(String template, int start, String endTag) {
-        // 简单实现：查找第一个 {{/tag}} 并返回包括标签在内的内容
         String searchStr = "{{" + endTag + "}}";
         int endIndex = template.indexOf(searchStr, start);
         if (endIndex == -1) {
             return null;
         }
-        return template.substring(start, endIndex + searchStr.length());
+        // 返回：块内容 + 换行符 + 结束标签
+        // 块内容 = 从 start 到 endIndex（结束标签开始位置）
+        // 结束标签 = searchStr
+        return template.substring(start, endIndex) + "\n" + searchStr;
     }
 
     /**
@@ -323,17 +338,17 @@ public final class PlaceholderUtils {
             String path = defaultMatcher.group(1).trim();
             String defaultValue = defaultMatcher.group(2);
             Object value = resolvePath(path, placeholders);
-            if (value != null && isTruthy(value)) {
-                return escapeReplacement(value.toString());
+            if (value != null && TemplateUtils.isTruthy(value)) {
+                return TemplateUtils.escapeReplacement(value.toString());
             }
-            return escapeReplacement(defaultValue);
+            return TemplateUtils.escapeReplacement(defaultValue);
         }
 
         // 检查表达式
         Matcher exprMatcher = EXPRESSION_PATTERN.matcher(placeholder);
         if (exprMatcher.matches()) {
             Object result = evaluateExpression(placeholder, placeholders, functions);
-            return result != null ? escapeReplacement(result.toString()) : "";
+            return result != null ? TemplateUtils.escapeReplacement(result.toString()) : "";
         }
 
         // 检查函数调用
@@ -346,13 +361,13 @@ public final class PlaceholderUtils {
             if (func != null) {
                 Object[] args = parseArgs(argsStr, placeholders, functions);
                 Object result = func.apply(args);
-                return result != null ? escapeReplacement(result.toString()) : "";
+                return result != null ? TemplateUtils.escapeReplacement(result.toString()) : "";
             }
         }
 
         // 普通变量
         Object value = resolvePath(placeholder, placeholders);
-        return value != null ? escapeReplacement(value.toString()) : "";
+        return value != null ? TemplateUtils.escapeReplacement(value.toString()) : "";
     }
 
     /**
@@ -437,7 +452,7 @@ public final class PlaceholderUtils {
         while (matcher.find()) {
             String placeholder = matcher.group(1).trim();
             Object value = resolvePath(placeholder, placeholders);
-            String replacement = value != null ? escapeReplacement(value.toString()) : "";
+            String replacement = value != null ? TemplateUtils.escapeReplacement(value.toString()) : "";
             matcher.appendReplacement(result, replacement);
         }
         matcher.appendTail(result);
@@ -479,35 +494,6 @@ public final class PlaceholderUtils {
         }
 
         return current;
-    }
-
-    /**
-     * 判断值是否为真
-     */
-    private static boolean isTruthy(Object value) {
-        if (value == null) {
-            return false;
-        }
-        if (value instanceof Boolean) {
-            return (Boolean) value;
-        }
-        if (value instanceof String) {
-            return !((String) value).isEmpty();
-        }
-        if (value instanceof Number) {
-            return ((Number) value).doubleValue() != 0;
-        }
-        if (value instanceof Collection) {
-            return !((Collection<?>) value).isEmpty();
-        }
-        return true;
-    }
-
-    /**
-     * 转义 replacement 字符串中的特殊字符
-     */
-    private static String escapeReplacement(String value) {
-        return value.replace("\\", "\\\\").replace("$", "\\$");
     }
 
     /**
