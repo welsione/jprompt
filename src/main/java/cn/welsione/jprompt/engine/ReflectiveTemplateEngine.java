@@ -2,6 +2,7 @@ package cn.welsione.jprompt.engine;
 
 import cn.welsione.jprompt.TemplateException;
 import cn.welsione.jprompt.util.PlaceholderUtils;
+import cn.welsione.jprompt.util.TemplateUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
@@ -61,7 +62,10 @@ public class ReflectiveTemplateEngine implements TemplateEngine {
         registerFunction("join", args -> {
             if (args.length > 0 && args[0] instanceof Collection) {
                 String separator = args.length > 1 ? args[1].toString() : ",";
-                return String.join(separator, args[0].toString());
+                Collection<?> collection = (Collection<?>) args[0];
+                return String.join(separator, collection.stream()
+                    .map(Object::toString)
+                    .toArray(String[]::new));
             }
             return args.length > 0 ? args[0].toString() : "";
         });
@@ -89,10 +93,10 @@ public class ReflectiveTemplateEngine implements TemplateEngine {
 
         // 逻辑函数
         registerFunction("ternary", args -> args.length >= 3
-                ? (isTruthy(args[0]) ? args[1] : args[2]).toString()
+                ? (TemplateUtils.isTruthy(args[0]) ? args[1] : args[2]).toString()
                 : "");
         registerFunction("default", args -> args.length > 0
-                ? (isTruthy(args[0]) ? args[0] : args.length > 1 ? args[1] : "").toString()
+                ? (TemplateUtils.isTruthy(args[0]) ? args[0] : args.length > 1 ? args[1] : "").toString()
                 : "");
 
         // 数学函数
@@ -127,15 +131,6 @@ public class ReflectiveTemplateEngine implements TemplateEngine {
         } catch (Exception e) {
             return 0;
         }
-    }
-
-    private boolean isTruthy(Object value) {
-        if (value == null) return false;
-        if (value instanceof Boolean) return (Boolean) value;
-        if (value instanceof String) return !((String) value).isEmpty();
-        if (value instanceof Number) return ((Number) value).doubleValue() != 0;
-        if (value instanceof Collection) return !((Collection<?>) value).isEmpty();
-        return true;
     }
 
     private String capitalize(String str) {
@@ -184,12 +179,22 @@ public class ReflectiveTemplateEngine implements TemplateEngine {
      * 将嵌套的 Map 展平为扁平的占位符映射
      */
     private void flattenMap(String prefix, Map<String, Object> map, Map<String, Object> result) {
+        flattenMap(prefix, map, result, 0);
+    }
+
+    /**
+     * 将嵌套的 Map 展平为扁平的占位符映射（带深度保护）
+     */
+    private void flattenMap(String prefix, Map<String, Object> map, Map<String, Object> result, int depth) {
+        if (depth > TemplateUtils.getMaxNestingDepth()) {
+            throw new TemplateException("嵌套层级过深，最大支持 " + TemplateUtils.getMaxNestingDepth() + " 层");
+        }
         for (Map.Entry<String, Object> entry : map.entrySet()) {
             String key = prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey();
             Object value = entry.getValue();
 
             if (value instanceof Map) {
-                flattenMap(key, (Map<String, Object>) value, result);
+                flattenMap(key, (Map<String, Object>) value, result, depth + 1);
             } else {
                 result.put(key, value);
             }
