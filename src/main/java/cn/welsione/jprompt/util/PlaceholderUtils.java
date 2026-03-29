@@ -195,7 +195,7 @@ public final class PlaceholderUtils {
                             String right = exprParts[1].replace("\"", "").trim();
 
                             Object leftValue = evaluateExpression(left, placeholders);
-                            String leftStr = leftValue != null ? leftValue.toString() : "";
+                            String leftStr = TemplateUtils.toStringOrEmpty(leftValue);
                             boolean isEqual = leftStr.equals(right);
 
                             String blockContent = template.substring(matcher.end(), endPos[0]);
@@ -273,16 +273,16 @@ public final class PlaceholderUtils {
             String defaultValue = defaultMatcher.group(2);
             Object value = resolvePath(path, placeholders);
             if (TemplateUtils.isTruthy(value)) {
-                return TemplateUtils.escapeReplacement(value.toString());
+                return TemplateUtils.toStringOrEmpty(value);
             }
-            return TemplateUtils.escapeReplacement(defaultValue);
+            return defaultValue;
         }
 
         // 检查表达式
         Matcher exprMatcher = EXPRESSION_PATTERN.matcher(placeholder);
         if (exprMatcher.matches()) {
             Object result = evaluateExpression(placeholder, placeholders);
-            return result != null ? TemplateUtils.escapeReplacement(result.toString()) : "";
+            return TemplateUtils.toStringOrEmpty(result);
         }
 
         // 检查函数调用
@@ -295,13 +295,16 @@ public final class PlaceholderUtils {
             if (func != null) {
                 Object[] args = parseArgs(argsStr, placeholders);
                 Object result = func.apply(args);
-                return result != null ? TemplateUtils.escapeReplacement(result.toString()) : "";
+                return TemplateUtils.toStringOrEmpty(result);
             }
         }
 
-        // 普通变量
+        // 普通变量 - 占位符不存在时保留原样
         Object value = resolvePath(placeholder, placeholders);
-        return value != null ? TemplateUtils.escapeReplacement(value.toString()) : "";
+        if (value != null) {
+            return TemplateUtils.toStringOrEmpty(value);
+        }
+        return "{{" + placeholder + "}}";
     }
 
     /**
@@ -379,8 +382,13 @@ public final class PlaceholderUtils {
         while (matcher.find()) {
             String placeholder = matcher.group(1).trim();
             Object value = resolvePath(placeholder, placeholders);
-            String replacement = value != null ? TemplateUtils.escapeReplacement(value.toString()) : "";
-            matcher.appendReplacement(result, replacement);
+            if (value != null) {
+                String replacement = TemplateUtils.escapeReplacement(value.toString());
+                matcher.appendReplacement(result, replacement);
+            } else {
+                // 占位符不存在，保留原字符串（包括花括号）
+                matcher.appendReplacement(result, matcher.group());
+            }
         }
         matcher.appendTail(result);
 
