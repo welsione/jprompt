@@ -11,7 +11,7 @@
 
     <name>jprompt</name>
     <description>轻量级提示词模板框架</description>
-    <url>https://github.com/winstone/jprompt</url>
+    <url>https://github.com/welsione/jprompt</url>
 
     <properties>
         <java.version>17</java.version>
@@ -90,20 +90,16 @@
                     </archive>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-gpg-plugin</artifactId>
-                <version>3.2.0</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>sign</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/welsione/jprompt</url>
+        </repository>
+    </distributionManagement>
 
     <licenses>
         <license>
@@ -120,8 +116,8 @@
     </developers>
 
     <scm>
-        <url>https://github.com/winstone/jprompt</url>
-        <connection>scm:git:https://github.com/winstone/jprompt.git</connection>
-        <developerConnection>scm:git:https://github.com/winstone/jprompt.git</developerConnection>
+        <url>https://github.com/welsione/jprompt</url>
+        <connection>scm:git:https://github.com/welsione/jprompt.git</connection>
+        <developerConnection>scm:git:https://github.com/welsione/jprompt.git</developerConnection>
     </scm>
 </project>
