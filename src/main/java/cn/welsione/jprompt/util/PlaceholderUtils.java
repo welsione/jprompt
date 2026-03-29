@@ -38,6 +38,9 @@ public final class PlaceholderUtils {
     private static final Pattern EACH_ALIAS_PATTERN = Pattern.compile(
             "^(\\S+)\\s+as\\s+(\\S+)$");
 
+    // 数值正则（预编译）
+    private static final Pattern NUMERIC_PATTERN = Pattern.compile("\\d+\\.?\\d*");
+
     private PlaceholderUtils() {
         // 工具类，禁止实例化
     }
@@ -278,14 +281,7 @@ public final class PlaceholderUtils {
             return defaultValue;
         }
 
-        // 检查表达式
-        Matcher exprMatcher = EXPRESSION_PATTERN.matcher(placeholder);
-        if (exprMatcher.matches()) {
-            Object result = evaluateExpression(placeholder, placeholders);
-            return TemplateUtils.toStringOrEmpty(result);
-        }
-
-        // 检查函数调用
+        // 检查函数调用（优先级高于表达式）
         Matcher funcMatcher = FUNCTION_PATTERN.matcher(placeholder);
         if (funcMatcher.matches()) {
             String funcName = funcMatcher.group(1);
@@ -297,6 +293,12 @@ public final class PlaceholderUtils {
                 Object result = func.apply(args);
                 return TemplateUtils.toStringOrEmpty(result);
             }
+        }
+
+        // 表达式求值（内部已做匹配检查，避免重复匹配）
+        Object result = evaluateExpression(placeholder, placeholders);
+        if (result != null) {
+            return TemplateUtils.toStringOrEmpty(result);
         }
 
         // 普通变量 - 占位符不存在时保留原样
@@ -342,11 +344,12 @@ public final class PlaceholderUtils {
      * 获取数值
      */
     private static Object getNumericValue(String value, Map<String, Object> placeholders) {
-        try {
-            if (value.matches("\\d+\\.?\\d*")) {
+        if (NUMERIC_PATTERN.matcher(value).matches()) {
+            try {
                 return value.contains(".") ? Double.parseDouble(value) : Integer.parseInt(value);
+            } catch (NumberFormatException ignored) {
+                // fall through
             }
-        } catch (NumberFormatException ignored) {
         }
         return resolvePath(value, placeholders);
     }
