@@ -74,14 +74,14 @@ class PromptTemplateIntegrationTest {
 
     @Test
     void testJPromptFactoryCreateStatic() {
-        JPromptTemplate template = JPromptFactory.INSTANCE.createStatic("prompts/test_static.md");
+        JPrompt<Void> template = JPromptFactory.INSTANCE.get("prompts/test_static.md");
         assertNotNull(template.get());
         assertNotNull(template);
     }
 
     @Test
     void testJPromptFactoryCreateTemplate() {
-        JPromptTemplate template = JPromptFactory.INSTANCE.createTemplate("prompts/test_template.md", TestTaskData.class);
+        JPrompt<TestTaskData> template = JPromptFactory.INSTANCE.template("prompts/test_template.md", TestTaskData.class);
         assertNotNull(template);
 
         TestTaskData data = new TestTaskData();

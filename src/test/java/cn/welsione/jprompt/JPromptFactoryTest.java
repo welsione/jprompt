@@ -24,7 +24,7 @@ class JPromptFactoryTest {
     @Test
     void testCreateStatic() {
         // 静态类型直接返回内容
-        JPromptTemplate staticTemplate = JPromptFactory.INSTANCE.createStatic("prompts/test_static.md");
+        JPrompt<Void> staticTemplate = JPromptFactory.INSTANCE.get("prompts/test_static.md");
         assertNotNull(staticTemplate);
         assertNotNull(staticTemplate.get());
     }
@@ -32,7 +32,7 @@ class JPromptFactoryTest {
     @Test
     void testCreateTemplate() {
         // 模板类型返回原始模板
-        JPromptTemplate template = JPromptFactory.INSTANCE.createTemplate("prompts/test_template.md", TestData.class);
+        JPrompt<TestData> template = JPromptFactory.INSTANCE.template("prompts/test_template.md", TestData.class);
         assertNotNull(template);
         assertNotNull(template.get());
     }
@@ -40,7 +40,7 @@ class JPromptFactoryTest {
     @Test
     void testTemplateBuild() {
         // 模板类型可以 build
-        JPromptTemplate template = JPromptFactory.INSTANCE.createTemplate("prompts/test_template.md", TestData.class);
+        JPrompt<TestData> template = JPromptFactory.INSTANCE.template("prompts/test_template.md", TestData.class);
 
         TestData data = new TestData();
         data.setName("testName");
@@ -53,17 +53,16 @@ class JPromptFactoryTest {
     @Test
     void testStaticTemplateGet() {
         // 静态模板 get() 返回内容
-        JPromptTemplate staticTemplate = JPromptFactory.INSTANCE.createStatic("prompts/test_static.md");
+        JPrompt<Void> staticTemplate = JPromptFactory.INSTANCE.get("prompts/test_static.md");
         String content = staticTemplate.get();
         assertNotNull(content);
     }
 
     @Test
     void testStaticTemplateBuildThrows() {
-        // 静态模板 build() 应该抛出异常
-        JPromptTemplate staticTemplate = JPromptFactory.INSTANCE.createStatic("prompts/test_static.md");
-        assertThrows(UnsupportedOperationException.class, () -> {
-            staticTemplate.build(new Object());
-        });
+        // 静态模板 build() 应该直接返回内容（不支持 build）
+        JPrompt<Void> staticTemplate = JPromptFactory.INSTANCE.get("prompts/test_static.md");
+        String result = staticTemplate.build(null);
+        assertNotNull(result);
     }
 }
