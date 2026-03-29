@@ -1,0 +1,9 @@
+# IDE
+.idea/
+*.iml
+
+# Build
+target/
+
+# Claude
+CLAUDE.md
