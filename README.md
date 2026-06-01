@@ -426,7 +426,6 @@ String result = engine.render("我有 {{itemCount}} {{pluralize itemCount \"个\
 {{price * quantity}}     → 乘法: 总价
 {{total / count}}       → 除法: 平均值
 {{remaining - 1}}       → 减法: 递减
-{{budget % 1000}}       → 取模: 分组
 ```
 
 **示例：**
@@ -444,8 +443,8 @@ order.setQuantity(3);
 order.setPrice(100.0);
 order.setDiscount(10.0);
 
-// 模板: 总价: {{price * quantity}}, 折后: {{price * quantity - discount}}
-// 输出: 总价: 300.0, 折后: 290.0
+// 模板: 总价: {{price * quantity}}
+// 输出: 总价: 300.0
 ```
 
 ## 高级用法
@@ -512,7 +511,7 @@ public class Company {
 │        ▼                                    ▼           │
 │   ┌─────────┐                        ┌─────────────┐    │
 │   │ Jackson │                        │  Rendered   │    │
-│   │ flatten │                        │   Text      │    │
+│   │ nested  │                        │   Text      │    │
 │   └─────────┘                        └─────────────┘    │
 │        │                                    │           │
 │        ▼                                    ▼           │
@@ -520,7 +519,7 @@ public class Company {
 │   │  Map<String, Object>                        │      │
 │   │  {                                          │      │
 │   │    "name": "张三",                         │      │
-│   │    "dept.employees[0].name": "李四",       │      │
+│   │    "departments": [...]                    │      │
 │   │    ...                                     │      │
 │   │  }                                         │      │
 │   └─────────────────────────────────────────────┘      │
@@ -559,15 +558,21 @@ String rendered = template.build(dataObject);
 ### JPromptFactory
 
 ```java
-// 直接使用工厂
+// 使用默认工厂
 JPrompt<Void> prompt = JPromptFactory.INSTANCE.get("prompts/xxx.md");
 JPrompt<Data> template = JPromptFactory.INSTANCE.template("prompts/xxx.md", Data.class);
 
-// 强制刷新模板缓存
+// 清空模板缓存
 JPromptFactory.INSTANCE.clearCache();
 
-// 获取所有缓存的模板
-Map<String, String> cached = JPromptFactory.INSTANCE.getCache();
+// 创建自定义工厂
+JPromptFactory factory = JPromptFactory.builder()
+    .loader(path -> "Hello, {{name}}")
+    .engine(new ReflectiveTemplateEngine())
+    .cacheEnabled(false)
+    .build();
+
+JPrompt<Data> customTemplate = factory.template("memory://hello", Data.class);
 ```
 
 ### ReflectiveTemplateEngine
@@ -591,13 +596,20 @@ String result = engine.render(templateContent, dataObject);
 ```
 jprompt/src/main/java/cn/welsione/jprompt/
 ├── JPrompt.java                   # 提示词模板类（泛型 T）
-├── JPromptFactory.java            # 工厂类（枚举单例）
+├── JPromptFactory.java            # 可配置工厂
 ├── TemplateException.java         # 异常类
 ├── engine/
 │   ├── TemplateEngine.java        # 引擎接口
 │   └── ReflectiveTemplateEngine.java  # 基于 Jackson 反射的引擎实现
+├── loader/
+│   ├── TemplateLoader.java        # 模板加载器接口
+│   └── ClasspathTemplateLoader.java   # classpath 加载器
 └── util/
-    ├── PlaceholderUtils.java      # 占位符处理核心逻辑
+    ├── PlaceholderUtils.java      # 渲染入口
+    ├── TemplateParser.java        # 模板解析器
+    ├── TemplateNodes.java         # 模板节点
+    ├── RenderContext.java         # 渲染上下文
+    ├── ExpressionEvaluator.java   # 表达式和函数求值
     └── TemplateUtils.java         # 工具类（isTruthy、escapeReplacement）
 ```
 
@@ -606,9 +618,11 @@ jprompt/src/main/java/cn/welsione/jprompt/
 | 组件 | 职责 |
 |------|------|
 | `JPrompt<T>` | 模板对象，泛型参数 T 在编译时进行类型检查 |
-| `JPromptFactory` | 工厂类，负责加载模板和缓存 |
-| `ReflectiveTemplateEngine` | 模板引擎实现，使用 Jackson 反射展平对象 |
-| `PlaceholderUtils` | 核心渲染逻辑，三阶段处理占位符 |
+| `JPromptFactory` | 可配置工厂，负责加载器、引擎和缓存策略 |
+| `TemplateLoader` | 模板加载接口 |
+| `ReflectiveTemplateEngine` | 模板引擎实现，使用 Jackson 转换嵌套对象 |
+| `TemplateParser` | 将模板解析为节点树 |
+| `RenderContext` | 管理根数据、循环局部作用域和函数表 |
 
 ## License
 

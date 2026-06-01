@@ -1,5 +1,7 @@
 package cn.welsione.jprompt;
 
+import cn.welsione.jprompt.engine.TemplateEngine;
+
 /**
  * 提示词模板类
  *
@@ -10,11 +12,13 @@ public class JPrompt<T> {
     private final String content;
     private final Class<T> dataClass;
     private final boolean isTemplate;
+    private final TemplateEngine engine;
 
-    JPrompt(String content, Class<T> dataClass, boolean isTemplate) {
+    JPrompt(String content, Class<T> dataClass, boolean isTemplate, TemplateEngine engine) {
         this.content = content;
         this.dataClass = dataClass;
         this.isTemplate = isTemplate;
+        this.engine = engine;
     }
 
     /**
@@ -40,7 +44,7 @@ public class JPrompt<T> {
             throw new TemplateException("模板数据类型不匹配，期望: " + dataClass.getName()
                     + "，实际: " + data.getClass().getName());
         }
-        return JPromptFactory.INSTANCE.getEngine().render(content, data);
+        return engine.render(content, data);
     }
 
     /**

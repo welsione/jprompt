@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -72,5 +74,55 @@ class JPromptFactoryTest {
         JPrompt rawTemplate = JPromptFactory.INSTANCE.template("prompts/test_template.md", TestData.class);
 
         assertThrows(TemplateException.class, () -> rawTemplate.build(new Object()));
+    }
+
+    @Test
+    void testCustomLoader() {
+        JPromptFactory factory = JPromptFactory.builder()
+                .loader(path -> "Hello, {{name}} from " + path)
+                .build();
+
+        JPrompt<TestData> template = factory.template("memory-template", TestData.class);
+        TestData data = new TestData();
+        data.setName("Alice");
+
+        assertEquals("Hello, Alice from memory-template", template.build(data));
+    }
+
+    @Test
+    void testTemplateCacheEnabledByDefault() {
+        AtomicInteger loadCount = new AtomicInteger();
+        JPromptFactory factory = JPromptFactory.builder()
+                .loader(path -> "load-" + loadCount.incrementAndGet())
+                .build();
+
+        assertEquals("load-1", factory.get("cached").get());
+        assertEquals("load-1", factory.get("cached").get());
+        assertEquals(1, loadCount.get());
+    }
+
+    @Test
+    void testTemplateCacheCanBeDisabled() {
+        AtomicInteger loadCount = new AtomicInteger();
+        JPromptFactory factory = JPromptFactory.builder()
+                .loader(path -> "load-" + loadCount.incrementAndGet())
+                .cacheEnabled(false)
+                .build();
+
+        assertEquals("load-1", factory.get("uncached").get());
+        assertEquals("load-2", factory.get("uncached").get());
+        assertEquals(2, loadCount.get());
+    }
+
+    @Test
+    void testClearCacheReloadsTemplate() {
+        AtomicInteger loadCount = new AtomicInteger();
+        JPromptFactory factory = JPromptFactory.builder()
+                .loader(path -> "load-" + loadCount.incrementAndGet())
+                .build();
+
+        assertEquals("load-1", factory.get("reloadable").get());
+        factory.clearCache();
+        assertEquals("load-2", factory.get("reloadable").get());
     }
 }
