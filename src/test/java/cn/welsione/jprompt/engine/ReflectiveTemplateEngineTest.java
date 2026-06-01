@@ -1,5 +1,6 @@
 package cn.welsione.jprompt.engine;
 
+import cn.welsione.jprompt.MissingVariablePolicy;
 import cn.welsione.jprompt.TemplateException;
 import lombok.Getter;
 import lombok.Setter;
@@ -100,6 +101,23 @@ class ReflectiveTemplateEngineTest {
 
         // 缺失的占位符应保留原样
         assertEquals("Hello, Alice! Your hobby is {{hobby}}.", result);
+    }
+
+    @Test
+    void testRenderWithMissingFieldAsEmpty() {
+        TemplateEngine engine = new ReflectiveTemplateEngine(MissingVariablePolicy.EMPTY);
+        String template = "Hello, {{name}}!";
+
+        String result = engine.render(template, new HashMap<>());
+
+        assertEquals("Hello, !", result);
+    }
+
+    @Test
+    void testRenderWithMissingFieldThrows() {
+        TemplateEngine engine = new ReflectiveTemplateEngine(MissingVariablePolicy.THROW);
+
+        assertThrows(TemplateException.class, () -> engine.render("Hello, {{name}}!", new HashMap<>()));
     }
 
     @Test

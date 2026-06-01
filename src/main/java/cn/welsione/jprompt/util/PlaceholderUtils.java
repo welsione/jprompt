@@ -1,5 +1,6 @@
 package cn.welsione.jprompt.util;
 
+import cn.welsione.jprompt.MissingVariablePolicy;
 import cn.welsione.jprompt.engine.TemplateEngine;
 
 import java.util.Collections;
@@ -35,13 +36,29 @@ public final class PlaceholderUtils {
      */
     public static String render(String template, Map<String, Object> placeholders,
                                 Map<String, TemplateEngine.TemplateFunction> functions) {
+        return render(template, placeholders, functions, MissingVariablePolicy.KEEP_PLACEHOLDER);
+    }
+
+    /**
+     * 渲染模板（带函数注册和缺失变量策略）
+     *
+     * @param template              模板内容
+     * @param placeholders          占位符映射
+     * @param functions             函数映射
+     * @param missingVariablePolicy 缺失变量策略
+     * @return 渲染后的字符串
+     */
+    public static String render(String template, Map<String, Object> placeholders,
+                                Map<String, TemplateEngine.TemplateFunction> functions,
+                                MissingVariablePolicy missingVariablePolicy) {
         if (template == null || template.isEmpty()) {
             return template;
         }
 
         RenderContext context = new RenderContext(
                 placeholders == null ? Collections.emptyMap() : placeholders,
-                functions == null ? Collections.emptyMap() : functions
+                functions == null ? Collections.emptyMap() : functions,
+                missingVariablePolicy == null ? MissingVariablePolicy.KEEP_PLACEHOLDER : missingVariablePolicy
         );
         return new TemplateParser(template).parse().render(context);
     }

@@ -22,7 +22,9 @@ public final class JPromptFactory {
     private final boolean cacheEnabled;
 
     private JPromptFactory(Builder builder) {
-        this.engine = builder.engine;
+        this.engine = builder.engine != null
+                ? builder.engine
+                : new ReflectiveTemplateEngine(builder.missingVariablePolicy);
         this.loader = builder.loader;
         this.cacheEnabled = builder.cacheEnabled;
     }
@@ -90,9 +92,10 @@ public final class JPromptFactory {
 
     public static final class Builder {
 
-        private TemplateEngine engine = new ReflectiveTemplateEngine();
+        private TemplateEngine engine;
         private TemplateLoader loader = new ClasspathTemplateLoader();
         private boolean cacheEnabled = true;
+        private MissingVariablePolicy missingVariablePolicy = MissingVariablePolicy.KEEP_PLACEHOLDER;
 
         private Builder() {
         }
@@ -109,6 +112,12 @@ public final class JPromptFactory {
 
         public Builder cacheEnabled(boolean cacheEnabled) {
             this.cacheEnabled = cacheEnabled;
+            return this;
+        }
+
+        public Builder missingVariablePolicy(MissingVariablePolicy missingVariablePolicy) {
+            this.missingVariablePolicy = Objects.requireNonNull(
+                    missingVariablePolicy, "missingVariablePolicy must not be null");
             return this;
         }
 

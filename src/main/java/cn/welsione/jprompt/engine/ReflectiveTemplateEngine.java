@@ -1,5 +1,6 @@
 package cn.welsione.jprompt.engine;
 
+import cn.welsione.jprompt.MissingVariablePolicy;
 import cn.welsione.jprompt.TemplateException;
 import cn.welsione.jprompt.util.PlaceholderUtils;
 import cn.welsione.jprompt.util.TemplateUtils;
@@ -22,10 +23,18 @@ public class ReflectiveTemplateEngine implements TemplateEngine {
 
     private final ObjectMapper objectMapper;
     private final Map<String, TemplateFunction> functions = new ConcurrentHashMap<>();
+    private final MissingVariablePolicy missingVariablePolicy;
 
     public ReflectiveTemplateEngine() {
+        this(MissingVariablePolicy.KEEP_PLACEHOLDER);
+    }
+
+    public ReflectiveTemplateEngine(MissingVariablePolicy missingVariablePolicy) {
         this.objectMapper = new ObjectMapper();
         this.objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+        this.missingVariablePolicy = missingVariablePolicy == null
+                ? MissingVariablePolicy.KEEP_PLACEHOLDER
+                : missingVariablePolicy;
         registerBuiltInFunctions();
     }
 
@@ -153,7 +162,7 @@ public class ReflectiveTemplateEngine implements TemplateEngine {
             Map<String, Object> placeholders = buildJsonPlaceholderMap(data);
 
             // 渲染模板（带函数）
-            return PlaceholderUtils.render(template, placeholders, functions);
+            return PlaceholderUtils.render(template, placeholders, functions, missingVariablePolicy);
         } catch (Exception e) {
             log.error("模板渲染失败: {}", e.getMessage(), e);
             throw new TemplateException("模板渲染失败: " + e.getMessage(), e);

@@ -154,4 +154,14 @@ class JPromptFactoryTest {
 
         assertThrows(TemplateException.class, () -> loader.load("../outside.md"));
     }
+
+    @Test
+    void testMissingVariablePolicyFromFactory() {
+        JPromptFactory factory = JPromptFactory.builder()
+                .loader(path -> "Hello, {{name}}!")
+                .missingVariablePolicy(MissingVariablePolicy.EMPTY)
+                .build();
+
+        assertEquals("Hello, !", factory.template("missing", TestData.class).build(new TestData()));
+    }
 }

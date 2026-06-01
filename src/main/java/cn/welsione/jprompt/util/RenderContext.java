@@ -1,5 +1,6 @@
 package cn.welsione.jprompt.util;
 
+import cn.welsione.jprompt.MissingVariablePolicy;
 import cn.welsione.jprompt.engine.TemplateEngine;
 
 import java.lang.reflect.Array;
@@ -12,11 +13,18 @@ final class RenderContext {
 
     private final Map<String, Object> root;
     private final Map<String, TemplateEngine.TemplateFunction> functions;
+    private final MissingVariablePolicy missingVariablePolicy;
     private final Deque<Map<String, Object>> scopes = new ArrayDeque<>();
 
     RenderContext(Map<String, Object> root, Map<String, TemplateEngine.TemplateFunction> functions) {
+        this(root, functions, MissingVariablePolicy.KEEP_PLACEHOLDER);
+    }
+
+    RenderContext(Map<String, Object> root, Map<String, TemplateEngine.TemplateFunction> functions,
+                  MissingVariablePolicy missingVariablePolicy) {
         this.root = root;
         this.functions = functions;
+        this.missingVariablePolicy = missingVariablePolicy;
     }
 
     void push(Map<String, Object> scope) {
@@ -54,6 +62,10 @@ final class RenderContext {
 
     TemplateEngine.TemplateFunction function(String name) {
         return functions.get(name);
+    }
+
+    MissingVariablePolicy missingVariablePolicy() {
+        return missingVariablePolicy;
     }
 
     private Object resolveFirstPart(String part) {

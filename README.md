@@ -527,15 +527,29 @@ public class Company {
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 缺失占位符
+### 缺失变量
 
-当占位符在模板中但数据中不存在时，保留原占位符格式 `{{placeholder}}`：
+默认情况下，当占位符在模板中但数据中不存在时，保留原占位符格式 `{{placeholder}}`：
 
 ```java
 // 模板: 欢迎, {{username}}, 您的余额: {{balance}}
 // 数据: {username: "张三"}
 // 输出: 欢迎, 张三, 您的余额: {{balance}}
 ```
+
+可以通过 `MissingVariablePolicy` 调整缺失变量行为：
+
+```java
+JPromptFactory factory = JPromptFactory.builder()
+    .missingVariablePolicy(MissingVariablePolicy.EMPTY)
+    .build();
+```
+
+| 策略 | 行为 |
+|------|------|
+| `KEEP_PLACEHOLDER` | 保留原始占位符，默认行为 |
+| `EMPTY` | 输出空字符串 |
+| `THROW` | 抛出 `TemplateException` |
 
 ## API
 
@@ -568,7 +582,7 @@ JPromptFactory.INSTANCE.clearCache();
 // 创建自定义工厂
 JPromptFactory factory = JPromptFactory.builder()
     .loader(path -> "Hello, {{name}}")
-    .engine(new ReflectiveTemplateEngine())
+    .missingVariablePolicy(MissingVariablePolicy.EMPTY)
     .cacheEnabled(false)
     .build();
 

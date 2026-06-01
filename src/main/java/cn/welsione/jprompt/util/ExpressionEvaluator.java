@@ -1,5 +1,6 @@
 package cn.welsione.jprompt.util;
 
+import cn.welsione.jprompt.MissingVariablePolicy;
 import cn.welsione.jprompt.TemplateException;
 import cn.welsione.jprompt.engine.TemplateEngine;
 
@@ -40,7 +41,7 @@ final class ExpressionEvaluator {
         }
 
         Object result = evaluate(placeholder, context);
-        return result != null ? TemplateUtils.toStringOrEmpty(result) : "{{" + placeholder + "}}";
+        return result != null ? TemplateUtils.toStringOrEmpty(result) : handleMissingVariable(placeholder, context);
     }
 
     static Object evaluate(String expr, RenderContext context) {
@@ -87,6 +88,15 @@ final class ExpressionEvaluator {
             }
         }
         return context.resolve(value);
+    }
+
+    private static String handleMissingVariable(String placeholder, RenderContext context) {
+        MissingVariablePolicy policy = context.missingVariablePolicy();
+        return switch (policy) {
+            case KEEP_PLACEHOLDER -> "{{" + placeholder + "}}";
+            case EMPTY -> "";
+            case THROW -> throw new TemplateException("缺失模板变量: " + placeholder);
+        };
     }
 
     private static List<String> tokenizeArgs(String argsStr) {
