@@ -1,9 +1,14 @@
 package cn.welsione.jprompt;
 
+import cn.welsione.jprompt.loader.FileSystemTemplateLoader;
 import lombok.Getter;
 import lombok.Setter;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -12,6 +17,9 @@ import static org.junit.jupiter.api.Assertions.*;
  * JPromptFactory 功能测试
  */
 class JPromptFactoryTest {
+
+    @TempDir
+    Path tempDir;
 
     /**
      * 测试用数据类
@@ -124,5 +132,26 @@ class JPromptFactoryTest {
         assertEquals("load-1", factory.get("reloadable").get());
         factory.clearCache();
         assertEquals("load-2", factory.get("reloadable").get());
+    }
+
+    @Test
+    void testFileSystemLoader() throws IOException {
+        Path promptsDir = Files.createDirectories(tempDir.resolve("prompts"));
+        Files.writeString(promptsDir.resolve("hello.md"), "Hello, {{name}}");
+
+        JPromptFactory factory = JPromptFactory.builder()
+                .loader(new FileSystemTemplateLoader(tempDir))
+                .build();
+        TestData data = new TestData();
+        data.setName("Alice");
+
+        assertEquals("Hello, Alice", factory.template("prompts/hello.md", TestData.class).build(data));
+    }
+
+    @Test
+    void testFileSystemLoaderRejectsPathTraversal() {
+        FileSystemTemplateLoader loader = new FileSystemTemplateLoader(tempDir);
+
+        assertThrows(TemplateException.class, () -> loader.load("../outside.md"));
     }
 }

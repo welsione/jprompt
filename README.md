@@ -575,6 +575,21 @@ JPromptFactory factory = JPromptFactory.builder()
 JPrompt<Data> customTemplate = factory.template("memory://hello", Data.class);
 ```
 
+### TemplateLoader
+
+```java
+// 默认：从 classpath 加载
+JPromptFactory classpathFactory = JPromptFactory.builder()
+    .loader(new ClasspathTemplateLoader())
+    .build();
+
+// 开发期：从文件系统加载
+JPromptFactory fileFactory = JPromptFactory.builder()
+    .loader(new FileSystemTemplateLoader(Paths.get("src/main/resources")))
+    .cacheEnabled(false)
+    .build();
+```
+
 ### ReflectiveTemplateEngine
 
 ```java
@@ -604,6 +619,7 @@ jprompt/src/main/java/cn/welsione/jprompt/
 ├── loader/
 │   ├── TemplateLoader.java        # 模板加载器接口
 │   └── ClasspathTemplateLoader.java   # classpath 加载器
+│   └── FileSystemTemplateLoader.java  # 文件系统加载器
 └── util/
     ├── PlaceholderUtils.java      # 渲染入口
     ├── TemplateParser.java        # 模板解析器
@@ -620,6 +636,8 @@ jprompt/src/main/java/cn/welsione/jprompt/
 | `JPrompt<T>` | 模板对象，泛型参数 T 在编译时进行类型检查 |
 | `JPromptFactory` | 可配置工厂，负责加载器、引擎和缓存策略 |
 | `TemplateLoader` | 模板加载接口 |
+| `ClasspathTemplateLoader` | 从 classpath 加载模板 |
+| `FileSystemTemplateLoader` | 从文件系统根目录加载模板 |
 | `ReflectiveTemplateEngine` | 模板引擎实现，使用 Jackson 转换嵌套对象 |
 | `TemplateParser` | 将模板解析为节点树 |
 | `RenderContext` | 管理根数据、循环局部作用域和函数表 |
