@@ -1,83 +1,21 @@
 # jprompt
 
-```
-=========================================================================
-
-                            jprompt
-
-                     轻量级提示词模板框架
-               Lightweight Prompt Template Framework
-
-=========================================================================
-```
-
-轻量级提示词模板框架，支持静态提示词和动态模板渲染，专为 AI Agent 和 LLM 应用设计。
-
-## Badges
+轻量级 Java prompt template 库，面向 AI Agent 和 LLM 应用中的提示词管理、模板渲染和模板加载。
 
 [![Maven Central](https://img.shields.io/maven-central/v/cn.welsione/jprompt)](https://search.maven.org/artifact/cn.welsione/jprompt)
 [![License](https://img.shields.io/github/license/welsione/jprompt)](LICENSE)
 [![Java](https://img.shields.io/badge/Java-17+-green.svg)](https://adoptium.net/)
-[![Stars](https://img.shields.io/github/stars/welsione/jprompt?style=social)](https://github.com/welsione/jprompt)
 
-## 功能特性
+## 特性
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     jprompt 模板渲染流程                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│   ┌─────────────┐      ┌──────────────┐      ┌─────────────┐  │
-│   │  Template   │ ───▶ │    Engine    │ ───▶ │    Output   │  │
-│   │  {{name}}   │      │   (Render)    │      │   "张三"    │  │
-│   └─────────────┘      └──────────────┘      └─────────────┘  │
-│                                                                  │
-│   ┌─────────────────────────────────────────────────────────┐   │
-│   │  支持的占位符格式                                        │   │
-│   │  • 标准占位符 {{name}}       • 默认值 {{name!"默认值"}}  │   │
-│   │  • 嵌套属性 {{user.name}}    • 列表下标 {{users.0.name}} │   │
-│   └─────────────────────────────────────────────────────────┘   │
-│                                                                  │
-│   ┌─────────────────────────────────────────────────────────┐   │
-│   │  块级标签                                                │   │
-│   │  • {{#if}} / {{#unless}}   条件渲染                     │   │
-│   │  • {{#each}}               循环迭代                     │   │
-│   │  • {{#eq}}                 相等判断                     │   │
-│   └─────────────────────────────────────────────────────────┘   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-- **静态提示词** - 不可变的提示词内容，直接获取内容
-- **动态模板** - 支持占位符替换，泛型类型安全
-- **标准占位符格式** - 使用 `{{key}}` 作为唯一模板占位符格式
-- **嵌套属性** - 支持 `{{user.name}}` 嵌套路径解析
-- **块级标签** - 条件判断、循环迭代、相等判断
-- **内置函数** - 大小写转换、日期格式化、集合操作等
-- **表达式运算** - 支持基本算术运算
-- **轻量级依赖** - 仅依赖 Jackson 和 SLF4J
-
-## 适用场景
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         典型使用场景                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│   🤖 AI Agent                                                   │
-│   ├── 系统提示词管理        ├── 角色定义模板                     │
-│   └── 工具调用提示词       └── 多轮对话模板                     │
-│                                                                  │
-│   📝 LLM 应用开发                                                │
-│   ├── 提示词版本管理        ├── 模板复用                        │
-│   └── 动态内容渲染          └── 类型安全                        │
-│                                                                  │
-│   🎮 游戏开发                                                    │
-│   ├── NPC 对话模板          ├── 任务描述模板                    │
-│   └── 剧情脚本生成          └── 多语言支持                      │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+- 静态提示词和动态模板统一用 `JPrompt<T>` 表示
+- 使用 `{{name}}` 作为唯一占位符语法，避免误伤 Markdown、JSON 和代码片段
+- 支持嵌套属性、列表下标、默认值、条件、循环、相等判断
+- 支持内置函数和自定义函数
+- 支持 classpath、文件系统和自定义模板加载器
+- 支持模板缓存开关、清空缓存和单项缓存清理
+- 支持缺失变量策略：保留占位符、输出空字符串或抛异常
+- Java 17+，仅依赖 Jackson 和 SLF4J
 
 ## 安装
 
@@ -89,455 +27,246 @@
 </dependency>
 ```
 
-
-
 ## 快速开始
 
-### 1. 定义提示词
+把模板文件放到 `src/main/resources/prompts/user.md`：
 
-```java
-// 静态提示词（不可变）
-JPrompt<Void> systemPrompt = JPrompt.get("prompts/system.md");
-
-// 动态模板（可变）
-JPrompt<UserData> userTemplate = JPrompt.template("prompts/user.md", UserData.class);
+```markdown
+用户姓名: {{name}}
+用户年龄: {{age}}
+状态: {{#if active}}在线{{#else}}离线{{/if}}
 ```
 
-### 2. 定义数据类
+定义数据对象并渲染：
 
 ```java
 public class UserData {
     private String name;
     private int age;
-    private boolean isActive;
+    private boolean active;
 
     // getters/setters
-    // Lombok @Data 注解可简化
 }
-```
 
-### 3. 准备模板文件
+JPrompt<UserData> prompt = JPrompt.template("prompts/user.md", UserData.class);
 
-**模板文件放在 `src/main/resources/` 目录下**，jprompt 从 classpath 加载模板文件。
-
-```
-src/main/resources/
-└── prompts/
-    └── user.md    ← 模板文件位置
-```
-
-在 `resources/prompts/user.md` 中：
-
-```markdown
-用户姓名: {{name}}
-用户年龄: {{age}}
-状态: {{#if isActive}}在线{{/if}}
-```
-
-### 4. 使用模板
-
-```java
-// 获取静态提示词内容
-String content = systemPrompt.get();
-
-// 渲染动态模板
 UserData data = new UserData();
 data.setName("张三");
 data.setAge(30);
 data.setActive(true);
 
-String rendered = userTemplate.build(data);
+String rendered = prompt.build(data);
 ```
 
-**运行结果：**
+输出：
 
-```
+```text
 用户姓名: 张三
 用户年龄: 30
 状态: 在线
 ```
 
-## 模板文件
+静态提示词也使用同一个入口：
 
-### 文件位置
-
-jprompt 从 classpath 加载模板文件，模板文件应放在 `src/main/resources/` 或 `src/test/resources/` 目录下：
-
-```
-项目目录/
-├── src/
-│   ├── main/
-│   │   └── resources/
-│   │       ├── prompts/
-│   │       │   ├── system.md
-│   │       │   ├── user.md
-│   │       │   └── agent/
-│   │       │       └── planner.md
-│   │       └── templates/
-│   │           └── story.md
-│   └── test/
-│       └── resources/
-│           └── prompts/
-│               └── test.md
+```java
+JPrompt<Void> systemPrompt = JPrompt.get("prompts/system.md");
+String content = systemPrompt.get();
 ```
 
-### 目录结构图
+## 模板语法
 
-```
-resources/
-├── prompts/                    # 提示词模板
-│   ├── system.md               # 系统提示词
-│   ├── user.md                 # 用户提示词
-│   └── agent/                  # Agent 相关
-│       ├── radar.md            # 雷达 Agent
-│       ├── architect.md        # 架构 Agent
-│       └── writer.md            # 写作 Agent
-└── templates/                  # 其他模板
-    ├── email.md
-    └── story.md
+### 变量
+
+```markdown
+{{name}}
+{{user.name}}
+{{users.0.name}}
 ```
 
-## 占位符格式
+单花括号如 `{name}` 会按普通文本处理，不是模板语法。
 
-### 基本格式
-
-| 格式 | 示例 | 说明 |
-|------|------|------|
-| 标准占位符 | `{{name}}` | 变量插值 |
-
-单花括号（如 `{name}`）会按普通文本处理，不作为模板语法。
-
-### 嵌套属性
-
-支持点号路径解析：
-
-```
-{{user.name}}        → data.getUser().getName()
-{{address.city}}     → data.getAddress().getCity()
-{{company.dept.name}} → 多层嵌套
-{{users.0.name}}     → data.getUsers().get(0).getName()
-```
-
-### 默认值语法
-
-占位符不存在时使用默认值：
+### 默认值
 
 ```markdown
 {{name!"匿名用户"}}
 {{title!"无标题"}}
-{{description!"暂无描述"}}
 ```
 
-## 块级标签
+默认值会在变量不存在、为 `null`、空字符串、`false`、数字 `0` 或空集合时生效。
 
-### 条件渲染
-
-**if 标签** - 条件为真时渲染内容：
+### 条件
 
 ```markdown
-{{#if isActive}}
-用户已激活
+{{#if active}}
+用户在线
+{{#else}}
+用户离线
 {{/if}}
 
-{{#if user.isAdmin}}
-管理员面板
-{{/if}}
-```
-
-**unless 标签** - 条件为假时渲染内容（与 if 相反）：
-
-```markdown
-{{#unless isEmpty}}
-列表不为空
-{{/unless}}
-
-{{#unless user.isBanned}}
-用户未被禁用
+{{#unless banned}}
+用户未禁用
 {{/unless}}
 ```
 
-**流程图：**
-
-```
-{{#if condition}}              {{#unless condition}}
-     |                              |
-     v                              v
-  [True?]                      [False?]
-     |                              |
-   Yes | No                    Yes | No
-     |   |                        |   |
-     v   v                        v   v
-   显示  隐藏                    隐藏  显示
-```
-
-### 循环迭代
-
-**each 标签** - 遍历集合：
+### 循环
 
 ```markdown
-用户列表:
 {{#each users as user}}
-- {{user.name}} ({{user.age}}岁)
+- {{user.name}} ({{user.age}})
 {{/each}}
 ```
 
-**嵌套循环：**
+循环体内也可以直接访问 Map item 的字段：
 
 ```markdown
-{{#each departments as dept}}
-部门: {{dept.name}}
-{{#each dept.employees as emp}}
-  - {{emp.name}}
-{{/each}}
+{{#each users}}
+- {{name}}
 {{/each}}
 ```
 
-**流程图：**
+循环索引通过 `item_index` 或别名前缀访问：
 
-```
-{{#each items as item}}
-       │
-       ▼
-   [Collection]
-       │
-    ┌──┴──┐
-    │     │
-    ▼     ▼
-  Item1  Item2  ...
-    │     │
-    ▼     ▼
- 渲染   渲染
-    │     │
-    └──┬──┘
-       ▼
-    [Next]
-       │
-       ▼
-    (End)
+```markdown
+{{#each users as user}}
+{{user_index}}. {{user.name}}
+{{/each}}
 ```
 
 ### 相等判断
 
-**eq 标签** - 判断值是否相等：
-
 ```markdown
 {{#eq status "active"}}
-状态: 激活
+已激活
 {{/eq}}
 
-{{#eq role "admin"}}
-管理员权限
+{{#eq status expectedStatus}}
+状态匹配
+{{#else}}
+状态不匹配
 {{/eq}}
 ```
 
-**流程图：**
+`eq` 当前按字符串结果比较。
 
-```
-{{#eq status "active"}}
-       │
-       ▼
-  [status == "active"?]
-       │
-    ┌──┴──┐
-    │     │
-   Yes    No
-    │     │
-    ▼     ▼
-  显示   跳过
-```
+### 函数
 
-## 函数调用
-
-### 内置函数
+内置函数：
 
 ```markdown
-{{upperCase name}}         → 大写: JOHN
-{{lowerCase name}}         → 小写: john
-{{capitalize name}}        → 首字母大写: John
-{{trim description}}       → 去除首尾空格
-{{length items}}           → 集合长度: 5
-{{join tags ","}}          → 数组转字符串: a,b,c
-{{formatDate date "yyyy-MM-dd"}} → 日期格式化: 2024-01-15
-{{ternary cond "yes" "no"}} → 三元运算
-{{max a b}}                → 最大值
-{{min a b}}                → 最小值
+{{upperCase name}}
+{{lowerCase name}}
+{{capitalize name}}
+{{trim description}}
+{{length items}}
+{{join tags ","}}
+{{formatDate date "yyyy-MM-dd"}}
+{{ternary active "在线" "离线"}}
+{{max a b}}
+{{min a b}}
 ```
 
-### 自定义函数
-
-jprompt 支持注册自定义函数：
+注册自定义函数：
 
 ```java
-// 注册自定义函数
 ReflectiveTemplateEngine engine = new ReflectiveTemplateEngine();
-engine.registerFunction("pluralize", (args) -> {
-    int count = (int) args[0];
-    String singular = (String) args[1];
-    String plural = (String) args[2];
-    return count == 1 ? singular : plural;
-});
+engine.registerFunction("wrap", args -> "[" + args[0] + "]");
 
-// 使用自定义函数
-TemplateData data = new TemplateData();
-data.setItemCount(3);
-data.setItemName("苹果");
-
-String result = engine.render("我有 {{itemCount}} {{pluralize itemCount \"个\" \"些\"}} {{itemName}}", data);
-// 输出: 我有 3 些 苹果
+String rendered = engine.render("Name: {{wrap name}}", Map.of("name", "Alice"));
 ```
 
-**函数注册流程图：**
+### 简单表达式
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                  自定义函数注册与调用                      │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  1. 创建引擎                                             │
-│     ReflectiveTemplateEngine engine = new ...            │
-│              │                                           │
-│              ▼                                           │
-│  2. 注册函数                                             │
-│     engine.registerFunction("pluralize", fn)            │
-│              │                                           │
-│              ▼                                           │
-│  3. 渲染模板                                             │
-│     engine.render("{{pluralize count ...}}", data)       │
-│              │                                           │
-│              ▼                                           │
-│  4. 函数调用                                             │
-│     ┌──────────────────┐                               │
-│     │  pluralize(3,"个","些")  → "些"                   │
-│     └──────────────────┘                               │
-│              │                                           │
-│              ▼                                           │
-│  5. 输出结果                                             │
-│     "我有 3 些 苹果"                                     │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
-```
-
-## 表达式运算
-
-支持基本算术运算：
+支持单个二元算术表达式：
 
 ```markdown
-{{index + 1}}           → 加法: 序号计算
-{{price * quantity}}     → 乘法: 总价
-{{total / count}}       → 除法: 平均值
-{{remaining - 1}}       → 减法: 递减
+{{index + 1}}
+{{price * quantity}}
+{{total / count}}
+{{remaining - 1}}
 ```
 
-**示例：**
+不支持复合表达式，例如 `{{price * quantity - discount}}`。
 
-```java
-public class OrderData {
-    private int quantity;
-    private double price;
-    private double discount;
-    // getters/setters
-}
+## 数据源
 
-OrderData order = new OrderData();
-order.setQuantity(3);
-order.setPrice(100.0);
-order.setDiscount(10.0);
-
-// 模板: 总价: {{price * quantity}}
-// 输出: 总价: 300.0
-```
-
-## 高级用法
-
-### Map 作为数据源
-
-除了对象，还可以用 Map 作为数据源：
-
-```java
-Map<String, Object> data = new HashMap<>();
-data.put("name", "张三");
-data.put("age", 30);
-data.put("skills", Arrays.asList("Java", "Python", "Go"));
-
-JPrompt<Map> template = JPrompt.template("prompts/resume.md", Map.class);
-String result = template.build(data);
-```
-
-### 嵌套集合的使用
+可以传 Java Bean：
 
 ```java
 public class Company {
     private String name;
     private List<Department> departments;
-
-    public static class Department {
-        private String name;
-        private List<Employee> employees;
-        // getters/setters
-    }
-
-    public static class Employee {
-        private String name;
-        private String title;
-        // getters/setters
-    }
+    // getters/setters
 }
 ```
 
-**模板：**
+也可以传 `Map`：
+
+```java
+Map<String, Object> data = new HashMap<>();
+data.put("name", "张三");
+data.put("skills", List.of("Java", "Python"));
+
+JPrompt<Map> prompt = JPrompt.template("prompts/resume.md", Map.class);
+String rendered = prompt.build(data);
+```
+
+嵌套集合示例：
 
 ```markdown
 公司: {{name}}
 {{#each departments as dept}}
-  部门: {{dept.name}}
-  {{#each dept.employees as emp}}
-    - {{emp.name}} ({{emp.title}})
-  {{/each}}
+部门: {{dept.name}}
+{{#each dept.employees as emp}}
+- {{emp.name}} / {{emp.title}}
+{{/each}}
 {{/each}}
 ```
 
-**数据流转图：**
+## 加载器和缓存
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    数据流转架构                          │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│   ┌─────────┐     ┌──────────────┐     ┌─────────────┐  │
-│   │  Java   │ ──▶ │  Template    │ ──▶ │   String    │  │
-│   │  Object │     │   Engine     │     │   Output    │  │
-│   └─────────┘     └──────────────┘     └─────────────┘  │
-│        │                                    │           │
-│        ▼                                    ▼           │
-│   ┌─────────┐                        ┌─────────────┐    │
-│   │ Jackson │                        │  Rendered   │    │
-│   │ nested  │                        │   Text      │    │
-│   └─────────┘                        └─────────────┘    │
-│        │                                    │           │
-│        ▼                                    ▼           │
-│   ┌─────────────────────────────────────────────┐      │
-│   │  Map<String, Object>                        │      │
-│   │  {                                          │      │
-│   │    "name": "张三",                         │      │
-│   │    "departments": [...]                    │      │
-│   │    ...                                     │      │
-│   │  }                                         │      │
-│   └─────────────────────────────────────────────┘      │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
-```
-
-### 缺失变量
-
-默认情况下，当占位符在模板中但数据中不存在时，保留原占位符格式 `{{placeholder}}`：
+默认从 classpath 加载模板：
 
 ```java
-// 模板: 欢迎, {{username}}, 您的余额: {{balance}}
-// 数据: {username: "张三"}
-// 输出: 欢迎, 张三, 您的余额: {{balance}}
+JPrompt<Void> prompt = JPrompt.get("prompts/system.md");
 ```
 
-可以通过 `MissingVariablePolicy` 调整缺失变量行为：
+使用文件系统加载器，适合开发期热改提示词：
+
+```java
+JPromptFactory factory = JPromptFactory.builder()
+    .loader(new FileSystemTemplateLoader(Paths.get("src/main/resources")))
+    .cacheEnabled(false)
+    .build();
+
+JPrompt<UserData> prompt = factory.template("prompts/user.md", UserData.class);
+```
+
+使用自定义加载器：
+
+```java
+JPromptFactory factory = JPromptFactory.builder()
+    .loader(path -> "Hello, {{name}}")
+    .build();
+```
+
+缓存控制：
+
+```java
+JPromptFactory.INSTANCE.clearCache();
+JPromptFactory.INSTANCE.evictCache("prompts/user.md");
+```
+
+## 缺失变量策略
+
+默认保留缺失变量占位符：
+
+```markdown
+Hello, {{name}}!
+```
+
+如果 `name` 不存在，输出仍为 `Hello, {{name}}!`。
+
+可以通过 `MissingVariablePolicy` 调整：
 
 ```java
 JPromptFactory factory = JPromptFactory.builder()
@@ -551,121 +280,76 @@ JPromptFactory factory = JPromptFactory.builder()
 | `EMPTY` | 输出空字符串 |
 | `THROW` | 抛出 `TemplateException` |
 
+也可以直接配置引擎：
+
+```java
+ReflectiveTemplateEngine engine = new ReflectiveTemplateEngine(MissingVariablePolicy.THROW);
+```
+
 ## API
 
 ### JPrompt
 
 ```java
-// 创建静态提示词
 JPrompt<Void> staticPrompt = JPrompt.get("prompts/static.md");
+JPrompt<UserData> template = JPrompt.template("prompts/user.md", UserData.class);
 
-// 创建动态模板
-JPrompt<DataClass> template = JPrompt.template("prompts/template.md", DataClass.class);
-
-// 获取内容（静态）
 String content = staticPrompt.get();
-
-// 渲染模板（动态）
-String rendered = template.build(dataObject);
+String rendered = template.build(data);
 ```
 
 ### JPromptFactory
 
 ```java
-// 使用默认工厂
-JPrompt<Void> prompt = JPromptFactory.INSTANCE.get("prompts/xxx.md");
-JPrompt<Data> template = JPromptFactory.INSTANCE.template("prompts/xxx.md", Data.class);
-
-// 清空模板缓存
-JPromptFactory.INSTANCE.clearCache();
-
-// 创建自定义工厂
 JPromptFactory factory = JPromptFactory.builder()
-    .loader(path -> "Hello, {{name}}")
-    .missingVariablePolicy(MissingVariablePolicy.EMPTY)
-    .cacheEnabled(false)
+    .loader(new ClasspathTemplateLoader())
+    .engine(new ReflectiveTemplateEngine())
+    .missingVariablePolicy(MissingVariablePolicy.KEEP_PLACEHOLDER)
+    .cacheEnabled(true)
     .build();
-
-JPrompt<Data> customTemplate = factory.template("memory://hello", Data.class);
 ```
 
 ### TemplateLoader
 
 ```java
-// 默认：从 classpath 加载
-JPromptFactory classpathFactory = JPromptFactory.builder()
-    .loader(new ClasspathTemplateLoader())
-    .build();
-
-// 开发期：从文件系统加载
-JPromptFactory fileFactory = JPromptFactory.builder()
-    .loader(new FileSystemTemplateLoader(Paths.get("src/main/resources")))
-    .cacheEnabled(false)
-    .build();
+TemplateLoader classpathLoader = new ClasspathTemplateLoader();
+TemplateLoader fileLoader = new FileSystemTemplateLoader(Paths.get("prompts"));
+TemplateLoader memoryLoader = path -> "Template: {{name}}";
 ```
 
-### ReflectiveTemplateEngine
+## 当前边界
 
-```java
-// 创建自定义引擎
-ReflectiveTemplateEngine engine = new ReflectiveTemplateEngine();
+jprompt 设计目标是轻量 prompt template，不是完整通用模板语言。当前有几个刻意保持简单的边界：
 
-// 注册自定义函数
-engine.registerFunction("myFunc", args -> {
-    // 函数实现
-    return result;
-});
+- 表达式只支持单个二元运算
+- 函数参数支持空格分隔和双引号字符串，不支持转义引号
+- `eq` 按字符串结果比较
+- 模板每次渲染都会解析一次，暂未暴露预编译模板 API
 
-// 渲染模板
-String result = engine.render(templateContent, dataObject);
-```
+## 项目结构
 
-## 架构
-
-```
-jprompt/src/main/java/cn/welsione/jprompt/
-├── JPrompt.java                   # 提示词模板类（泛型 T）
-├── JPromptFactory.java            # 可配置工厂
-├── TemplateException.java         # 异常类
+```text
+src/main/java/cn/welsione/jprompt/
+├── JPrompt.java
+├── JPromptFactory.java
+├── MissingVariablePolicy.java
+├── TemplateException.java
 ├── engine/
-│   ├── TemplateEngine.java        # 引擎接口
-│   └── ReflectiveTemplateEngine.java  # 基于 Jackson 反射的引擎实现
+│   ├── TemplateEngine.java
+│   └── ReflectiveTemplateEngine.java
 ├── loader/
-│   ├── TemplateLoader.java        # 模板加载器接口
-│   └── ClasspathTemplateLoader.java   # classpath 加载器
-│   └── FileSystemTemplateLoader.java  # 文件系统加载器
+│   ├── TemplateLoader.java
+│   ├── ClasspathTemplateLoader.java
+│   └── FileSystemTemplateLoader.java
 └── util/
-    ├── PlaceholderUtils.java      # 渲染入口
-    ├── TemplateParser.java        # 模板解析器
-    ├── TemplateNodes.java         # 模板节点
-    ├── RenderContext.java         # 渲染上下文
-    ├── ExpressionEvaluator.java   # 表达式和函数求值
-    └── TemplateUtils.java         # 工具类（isTruthy、escapeReplacement）
+    ├── PlaceholderUtils.java
+    ├── TemplateParser.java
+    ├── TemplateNodes.java
+    ├── RenderContext.java
+    ├── ExpressionEvaluator.java
+    └── TemplateUtils.java
 ```
-
-### 核心组件
-
-| 组件 | 职责 |
-|------|------|
-| `JPrompt<T>` | 模板对象，泛型参数 T 在编译时进行类型检查 |
-| `JPromptFactory` | 可配置工厂，负责加载器、引擎和缓存策略 |
-| `TemplateLoader` | 模板加载接口 |
-| `ClasspathTemplateLoader` | 从 classpath 加载模板 |
-| `FileSystemTemplateLoader` | 从文件系统根目录加载模板 |
-| `ReflectiveTemplateEngine` | 模板引擎实现，使用 Jackson 转换嵌套对象 |
-| `TemplateParser` | 将模板解析为节点树 |
-| `RenderContext` | 管理根数据、循环局部作用域和函数表 |
 
 ## License
 
-MIT License - 详见 [LICENSE](LICENSE) 文件。
-
-## Contributing
-
-欢迎提交 Issue 和 Pull Request！
-
-1. Fork 本仓库
-2. 创建分支 (`git checkout -b feature/your-feature`)
-3. 提交更改 (`git commit -m 'Add some feature'`)
-4. 推送到分支 (`git push origin feature/your-feature`)
-5. 创建 Pull Request
+MIT License.
