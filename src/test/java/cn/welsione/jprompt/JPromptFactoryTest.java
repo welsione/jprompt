@@ -65,4 +65,12 @@ class JPromptFactoryTest {
         String result = staticTemplate.build(null);
         assertNotNull(result);
     }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void testTemplateBuildRejectsWrongRawType() {
+        JPrompt rawTemplate = JPromptFactory.INSTANCE.template("prompts/test_template.md", TestData.class);
+
+        assertThrows(TemplateException.class, () -> rawTemplate.build(new Object()));
+    }
 }

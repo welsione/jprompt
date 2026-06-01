@@ -28,7 +28,7 @@ class PromptTemplateIntegrationTest {
     void testDeclarativeTemplateUsage() {
         TemplateEngine engine = new ReflectiveTemplateEngine();
 
-        String templateContent = "Task: {taskName}\nDescription: {description}\nPriority: {priority}";
+        String templateContent = "Task: {{taskName}}\nDescription: {{description}}\nPriority: {{priority}}";
 
         TestTaskData data = new TestTaskData();
         data.setTaskName("Write Report");
@@ -61,7 +61,7 @@ class PromptTemplateIntegrationTest {
     void testSpecialCharactersInData() {
         TemplateEngine engine = new ReflectiveTemplateEngine();
 
-        String template = "Task: {taskName}, Desc: {description}";
+        String template = "Task: {{taskName}}, Desc: {{description}}";
         TestTaskData data = new TestTaskData();
         data.setTaskName("Special");
         data.setDescription("Content with dollar $100");

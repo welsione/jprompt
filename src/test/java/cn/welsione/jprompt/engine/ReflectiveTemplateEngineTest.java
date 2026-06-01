@@ -1,5 +1,6 @@
 package cn.welsione.jprompt.engine;
 
+import cn.welsione.jprompt.TemplateException;
 import lombok.Getter;
 import lombok.Setter;
 import org.junit.jupiter.api.BeforeEach;
@@ -7,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -35,14 +37,14 @@ class ReflectiveTemplateEngineTest {
     }
 
     @Test
-    void testRenderWithSingleBracePlaceholder() {
+    void testSingleBracePlaceholderIsPlainText() {
         String template = "Hello, {name}!";
         TestData data = new TestData();
         data.setName("World");
 
         String result = templateEngine.render(template, data);
 
-        assertEquals("Hello, World!", result);
+        assertEquals("Hello, {name}!", result);
     }
 
     @Test
@@ -303,6 +305,76 @@ class ReflectiveTemplateEngineTest {
         assertEquals("Hello, World", result);
     }
 
+    @Test
+    void testRenderWithNestedBeanProperty() {
+        UserData data = new UserData();
+        data.setUser(new User("Alice", true));
+
+        String result = templateEngine.render("User: {{user.name}}, Active: {{user.active}}", data);
+
+        assertEquals("User: Alice, Active: true", result);
+    }
+
+    @Test
+    void testRenderWithListIndex() {
+        UserData data = new UserData();
+        data.setUsers(List.of(new User("Alice", true), new User("Bob", false)));
+
+        String result = templateEngine.render("First user: {{users.0.name}}", data);
+
+        assertEquals("First user: Alice", result);
+    }
+
+    @Test
+    void testNestedEachAndIfBlock() {
+        UserData data = new UserData();
+        data.setUsers(List.of(new User("Alice", true), new User("Bob", false)));
+
+        String template = "{{#each users as user}}{{#if user.active}}{{user.name}};{{/if}}{{/each}}";
+        String result = templateEngine.render(template, data);
+
+        assertEquals("Alice;", result);
+    }
+
+    @Test
+    void testIfElseBlock() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("active", false);
+
+        String result = templateEngine.render("{{#if active}}在线{{#else}}离线{{/if}}", data);
+
+        assertEquals("离线", result);
+    }
+
+    @Test
+    void testEqBlockWithVariableRightSide() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("status", "active");
+        data.put("expectedStatus", "active");
+
+        String result = templateEngine.render("{{#eq status expectedStatus}}在线{{/eq}}", data);
+
+        assertEquals("在线", result);
+    }
+
+    @Test
+    void testFunctionArgumentWithSpaces() {
+        TemplateEngine engine = new ReflectiveTemplateEngine();
+        engine.registerFunction("echo", args -> args.length > 0 ? args[0].toString() : "");
+
+        String result = engine.render("{{echo \"Untitled Document\"}}", new HashMap<>());
+
+        assertEquals("Untitled Document", result);
+    }
+
+    @Test
+    void testUnclosedBlockThrows() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("active", true);
+
+        assertThrows(TemplateException.class, () -> templateEngine.render("{{#if active}}在线", data));
+    }
+
     /**
      * 测试用数据类（仅使用字符串字段避免 Jackson 序列化问题）
      */
@@ -313,5 +385,27 @@ class ReflectiveTemplateEngineTest {
         private String greeting;
         private String age;
         private boolean passed;
+    }
+
+    @Getter
+    @Setter
+    public static class UserData {
+        private User user;
+        private List<User> users;
+    }
+
+    @Getter
+    @Setter
+    public static class User {
+        private String name;
+        private boolean active;
+
+        public User() {
+        }
+
+        public User(String name, boolean active) {
+            this.name = name;
+            this.active = active;
+        }
     }
 }

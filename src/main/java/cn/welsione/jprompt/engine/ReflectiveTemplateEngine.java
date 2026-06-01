@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 基于反射的模板引擎实现 - 增强版
@@ -20,7 +21,7 @@ import java.util.*;
 public class ReflectiveTemplateEngine implements TemplateEngine {
 
     private final ObjectMapper objectMapper;
-    private final Map<String, TemplateFunction> functions = new HashMap<>();
+    private final Map<String, TemplateFunction> functions = new ConcurrentHashMap<>();
 
     public ReflectiveTemplateEngine() {
         this.objectMapper = new ObjectMapper();
@@ -148,7 +149,7 @@ public class ReflectiveTemplateEngine implements TemplateEngine {
         }
 
         try {
-            // 使用 JSON 序列化方式构建占位符映射
+            // 使用 JSON 序列化方式构建嵌套占位符映射
             Map<String, Object> placeholders = buildJsonPlaceholderMap(data);
 
             // 渲染模板（带函数）
@@ -169,35 +170,6 @@ public class ReflectiveTemplateEngine implements TemplateEngine {
      */
     @SuppressWarnings("unchecked")
     private Map<String, Object> buildJsonPlaceholderMap(Object data) throws Exception {
-        Map<String, Object> map = objectMapper.convertValue(data, Map.class);
-        Map<String, Object> result = new HashMap<>();
-        flattenMap("", map, result);
-        return result;
-    }
-
-    /**
-     * 将嵌套的 Map 展平为扁平的占位符映射
-     */
-    private void flattenMap(String prefix, Map<String, Object> map, Map<String, Object> result) {
-        flattenMap(prefix, map, result, 0);
-    }
-
-    /**
-     * 将嵌套的 Map 展平为扁平的占位符映射（带深度保护）
-     */
-    private void flattenMap(String prefix, Map<String, Object> map, Map<String, Object> result, int depth) {
-        if (depth > TemplateUtils.getMaxNestingDepth()) {
-            throw new TemplateException("嵌套层级过深，最大支持 " + TemplateUtils.getMaxNestingDepth() + " 层");
-        }
-        for (Map.Entry<String, Object> entry : map.entrySet()) {
-            String key = prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey();
-            Object value = entry.getValue();
-
-            if (value instanceof Map) {
-                flattenMap(key, (Map<String, Object>) value, result, depth + 1);
-            } else {
-                result.put(key, value);
-            }
-        }
+        return objectMapper.convertValue(data, Map.class);
     }
 }

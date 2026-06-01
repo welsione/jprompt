@@ -36,6 +36,10 @@ public class JPrompt<T> {
         if (!isTemplate) {
             return content;
         }
+        if (data != null && !dataClass.isInstance(data)) {
+            throw new TemplateException("模板数据类型不匹配，期望: " + dataClass.getName()
+                    + "，实际: " + data.getClass().getName());
+        }
         return JPromptFactory.INSTANCE.getEngine().render(content, data);
     }
 

@@ -24,14 +24,14 @@ class PlaceholderUtilsTest {
     }
 
     @Test
-    void testSingleBracePlaceholder() {
+    void testSingleBracePlaceholderIsPlainText() {
         String template = "Hello, {name}!";
         Map<String, Object> placeholders = new HashMap<>();
         placeholders.put("name", "World");
 
         String result = PlaceholderUtils.render(template, placeholders);
 
-        assertEquals("Hello, World!", result);
+        assertEquals("Hello, {name}!", result);
     }
 
     @Test
@@ -113,7 +113,7 @@ class PlaceholderUtilsTest {
     }
 
     @Test
-    void testMixedPlaceholderFormats() {
+    void testSingleBraceInMixedTemplateIsPlainText() {
         String template = "First: {{name}}, Second: {age}";
         Map<String, Object> placeholders = new HashMap<>();
         placeholders.put("name", "Alice");
@@ -121,7 +121,7 @@ class PlaceholderUtilsTest {
 
         String result = PlaceholderUtils.render(template, placeholders);
 
-        assertEquals("First: Alice, Second: 30", result);
+        assertEquals("First: Alice, Second: {age}", result);
     }
 
     @Test

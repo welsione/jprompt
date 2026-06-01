@@ -2,53 +2,22 @@ package cn.welsione.jprompt.util;
 
 import cn.welsione.jprompt.engine.TemplateEngine;
 
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Collections;
+import java.util.Map;
 
 /**
- * 占位符工具类 - 增强版
+ * 占位符工具类
  * 支持：变量插值、条件判断、循环迭代、函数调用、表达式运算、默认值
  */
 public final class PlaceholderUtils {
 
-    // 双花括号占位符正则表达式
-    private static final Pattern DOUBLE_BRACE_PATTERN = Pattern.compile("\\{\\{([^}]+)\\}\\}");
-
-    // 单花括号占位符正则表达式
-    private static final Pattern SINGLE_BRACE_PATTERN = Pattern.compile("\\{([^}]+)\\}");
-
-    // 块级标签正则：{{#if}}, {{#unless}}, {{#each}}, {{#eq}}
-    private static final Pattern BLOCK_PATTERN = Pattern.compile(
-            "\\{\\{(#if|#unless|#each|#eq|#else|/if|/unless|/each|/eq)\\s*([^}]*)\\}\\}");
-
-    // 函数调用正则：{{funcName arg1 arg2}}
-    private static final Pattern FUNCTION_PATTERN = Pattern.compile(
-            "^([a-zA-Z_][a-zA-Z0-9_]*)\\s+(.+)$");
-
-    // 默认值语法：name!"default"
-    private static final Pattern DEFAULT_VALUE_PATTERN = Pattern.compile(
-            "^([^!]+)!\\s*\"([^\"]*)\"$");
-
-    // 算术表达式正则
-    private static final Pattern EXPRESSION_PATTERN = Pattern.compile(
-            "^\\s*([a-zA-Z_][a-zA-Z0-9_]*|\\d+\\.?\\d*)\\s*([+\\-*/])\\s*([a-zA-Z_][a-zA-Z0-9_]*|\\d+\\.?\\d*)\\s*$");
-
-    // each 别名语法：{{#each items as item}}
-    private static final Pattern EACH_ALIAS_PATTERN = Pattern.compile(
-            "^(\\S+)\\s+as\\s+(\\S+)$");
-
-    // 数值正则（预编译）
-    private static final Pattern NUMERIC_PATTERN = Pattern.compile("\\d+\\.?\\d*");
-
     private PlaceholderUtils() {
-        // 工具类，禁止实例化
     }
 
     /**
      * 渲染模板
      *
-     * @param template    模板内容
+     * @param template     模板内容
      * @param placeholders 占位符映射
      * @return 渲染后的字符串
      */
@@ -59,9 +28,9 @@ public final class PlaceholderUtils {
     /**
      * 渲染模板（带函数注册）
      *
-     * @param template    模板内容
+     * @param template     模板内容
      * @param placeholders 占位符映射
-     * @param functions   函数映射
+     * @param functions    函数映射
      * @return 渲染后的字符串
      */
     public static String render(String template, Map<String, Object> placeholders,
@@ -69,369 +38,12 @@ public final class PlaceholderUtils {
         if (template == null || template.isEmpty()) {
             return template;
         }
-        if (placeholders == null) {
-            placeholders = Collections.emptyMap();
-        }
 
-        // 第一遍：处理块级标签（if、unless、each、eq）
-        String result = processBlocks(template, placeholders, functions);
-
-        // 第二遍：处理简单变量插值和函数调用
-        result = processSimplePlaceholders(result, placeholders, functions);
-
-        // 第三遍：处理单花括号格式（兼容现有模板）
-        result = processSingleBrace(result, placeholders);
-
-        return result;
-    }
-
-    /**
-     * 处理块级标签
-     */
-    private static String processBlocks(String template, Map<String, Object> placeholders,
-                                        Map<String, TemplateEngine.TemplateFunction> functions) {
-        StringBuilder result = new StringBuilder();
-        Matcher matcher = BLOCK_PATTERN.matcher(template);
-        int lastEnd = 0;
-
-        while (matcher.find()) {
-            int matchStart = matcher.start();
-            int matchEnd = matcher.end();
-
-            // 如果标签位置已被处理过，跳过
-            if (matchStart < lastEnd) {
-                continue;
-            }
-
-            result.append(template, lastEnd, matchStart);
-
-            String tag = matcher.group(1);
-            String content = matcher.group(2).trim();
-
-            switch (tag) {
-                case "#if": {
-                    int[] endPos = findBlockEndPos(template, matcher.end(), "/if");
-                    if (endPos != null) {
-                        Object condValue = evaluateExpression(content, placeholders);
-                        boolean condResult = TemplateUtils.isTruthy(condValue);
-                        String blockContent = template.substring(matcher.end(), endPos[0]);
-
-                        if (condResult) {
-                            result.append(blockContent);
-                        }
-                        lastEnd = endPos[1];
-                    } else {
-                        lastEnd = matchEnd;
-                    }
-                    break;
-                }
-                case "#unless": {
-                    int[] endPos = findBlockEndPos(template, matcher.end(), "/unless");
-                    if (endPos != null) {
-                        Object condValue = evaluateExpression(content, placeholders);
-                        boolean condResult = TemplateUtils.isTruthy(condValue);
-                        String blockContent = template.substring(matcher.end(), endPos[0]);
-
-                        // unless 与 if 相反
-                        if (!condResult) {
-                            result.append(blockContent);
-                        }
-                        lastEnd = endPos[1];
-                    } else {
-                        lastEnd = matchEnd;
-                    }
-                    break;
-                }
-                case "#each": {
-                    int[] endPos = findBlockEndPos(template, matcher.end(), "/each");
-                    if (endPos != null) {
-                        // 解析 each 别名语法
-                        Matcher aliasMatcher = EACH_ALIAS_PATTERN.matcher(content);
-                        String itemName = "item";
-                        String itemsPath;
-
-                        if (aliasMatcher.matches()) {
-                            itemsPath = aliasMatcher.group(1);
-                            itemName = aliasMatcher.group(2);
-                        } else {
-                            itemsPath = content;
-                        }
-
-                        String blockContent = template.substring(matcher.end(), endPos[0]);
-
-                        // 获取迭代对象
-                        Object items = resolvePath(itemsPath, placeholders);
-                        if (items instanceof Iterable) {
-                            StringBuilder sb = new StringBuilder();
-                            int index = 0;
-                            for (Object item : (Iterable<?>) items) {
-                                Map<String, Object> iterationContext = new HashMap<>(placeholders);
-                                iterationContext.put(itemName, item);
-                                iterationContext.put(itemName + "_index", index);
-
-                                if (item instanceof Map) {
-                                    for (Map.Entry<?, ?> entry : ((Map<?, ?>) item).entrySet()) {
-                                        if (entry.getKey() != null) {
-                                            iterationContext.put(entry.getKey().toString(), entry.getValue());
-                                        }
-                                    }
-                                }
-
-                                String iterationResult = processSimplePlaceholders(blockContent, iterationContext, functions);
-                                sb.append(iterationResult);
-                                index++;
-                            }
-                            result.append(sb);
-                        }
-                        lastEnd = endPos[1];
-                    } else {
-                        lastEnd = matchEnd;
-                    }
-                    break;
-                }
-                case "#eq": {
-                    int[] endPos = findBlockEndPos(template, matcher.end(), "/eq");
-                    if (endPos != null) {
-                        String[] exprParts = content.split("\\s+", 2);
-                        if (exprParts.length >= 2) {
-                            String left = exprParts[0];
-                            String right = exprParts[1].replace("\"", "").trim();
-
-                            Object leftValue = evaluateExpression(left, placeholders);
-                            String leftStr = TemplateUtils.toStringOrEmpty(leftValue);
-                            boolean isEqual = leftStr.equals(right);
-
-                            String blockContent = template.substring(matcher.end(), endPos[0]);
-
-                            if (isEqual) {
-                                result.append(blockContent);
-                            }
-                            lastEnd = endPos[1];
-                        } else {
-                            lastEnd = matchEnd;
-                        }
-                    } else {
-                        lastEnd = matchEnd;
-                    }
-                    break;
-                }
-                case "#else":
-                case "/if":
-                case "/unless":
-                case "/each":
-                case "/eq":
-                    lastEnd = matchEnd;
-                    break;
-            }
-        }
-
-        result.append(template.substring(lastEnd));
-        return result.toString();
-    }
-
-    private static int[] findBlockEndPos(String template, int start, String endTag) {
-        String searchStr = "{{" + endTag + "}}";
-        int endIndex = template.indexOf(searchStr, start);
-        if (endIndex == -1) {
-            return null;
-        }
-        int endTagEnd = endIndex + searchStr.length();
-        return new int[]{endIndex, endTagEnd};
-    }
-
-    /**
-     * 处理简单占位符（变量、函数调用、默认值、表达式）
-     */
-    private static String processSimplePlaceholders(String template, Map<String, Object> placeholders,
-                                                     Map<String, TemplateEngine.TemplateFunction> functions) {
-        StringBuilder result = new StringBuilder();
-        Matcher matcher = DOUBLE_BRACE_PATTERN.matcher(template);
-        int lastEnd = 0;
-
-        while (matcher.find()) {
-            result.append(template, lastEnd, matcher.start());
-
-            String placeholder = matcher.group(1).trim();
-            int matchEnd = matcher.end();
-
-            String replacement = processPlaceholder(placeholder, placeholders, functions);
-            result.append(replacement);
-
-            lastEnd = matchEnd;
-        }
-
-        result.append(template.substring(lastEnd));
-        return result.toString();
-    }
-
-    /**
-     * 处理单个占位符
-     */
-    private static String processPlaceholder(String placeholder, Map<String, Object> placeholders,
-                                             Map<String, TemplateEngine.TemplateFunction> functions) {
-        // 检查默认值语法
-        Matcher defaultMatcher = DEFAULT_VALUE_PATTERN.matcher(placeholder);
-        if (defaultMatcher.matches()) {
-            String path = defaultMatcher.group(1).trim();
-            String defaultValue = defaultMatcher.group(2);
-            Object value = resolvePath(path, placeholders);
-            if (TemplateUtils.isTruthy(value)) {
-                return TemplateUtils.toStringOrEmpty(value);
-            }
-            return defaultValue;
-        }
-
-        // 检查函数调用（优先级高于表达式）
-        Matcher funcMatcher = FUNCTION_PATTERN.matcher(placeholder);
-        if (funcMatcher.matches()) {
-            String funcName = funcMatcher.group(1);
-            String argsStr = funcMatcher.group(2);
-
-            TemplateEngine.TemplateFunction func = functions.get(funcName);
-            if (func != null) {
-                Object[] args = parseArgs(argsStr, placeholders);
-                Object result = func.apply(args);
-                return TemplateUtils.toStringOrEmpty(result);
-            }
-        }
-
-        // 表达式求值（内部已做匹配检查，避免重复匹配）
-        Object result = evaluateExpression(placeholder, placeholders);
-        if (result != null) {
-            return TemplateUtils.toStringOrEmpty(result);
-        }
-
-        // 普通变量 - 占位符不存在时保留原样
-        Object value = resolvePath(placeholder, placeholders);
-        if (value != null) {
-            return TemplateUtils.toStringOrEmpty(value);
-        }
-        return "{{" + placeholder + "}}";
-    }
-
-    /**
-     * 评估表达式
-     */
-    private static Object evaluateExpression(String expr, Map<String, Object> placeholders) {
-        Matcher exprMatcher = EXPRESSION_PATTERN.matcher(expr);
-        if (exprMatcher.matches()) {
-            String left = exprMatcher.group(1);
-            String op = exprMatcher.group(2);
-            String right = exprMatcher.group(3);
-
-            Object leftVal = getNumericValue(left, placeholders);
-            Object rightVal = getNumericValue(right, placeholders);
-
-            if (leftVal instanceof Number && rightVal instanceof Number) {
-                double leftNum = ((Number) leftVal).doubleValue();
-                double rightNum = ((Number) rightVal).doubleValue();
-
-                return switch (op) {
-                    case "+" -> leftNum + rightNum;
-                    case "-" -> leftNum - rightNum;
-                    case "*" -> leftNum * rightNum;
-                    case "/" -> rightNum != 0 ? leftNum / rightNum : 0;
-                    default -> expr;
-                };
-            }
-        }
-
-        // 直接返回变量值
-        return resolvePath(expr, placeholders);
-    }
-
-    /**
-     * 获取数值
-     */
-    private static Object getNumericValue(String value, Map<String, Object> placeholders) {
-        if (NUMERIC_PATTERN.matcher(value).matches()) {
-            try {
-                return value.contains(".") ? Double.parseDouble(value) : Integer.parseInt(value);
-            } catch (NumberFormatException ignored) {
-                // fall through
-            }
-        }
-        return resolvePath(value, placeholders);
-    }
-
-    /**
-     * 解析参数列表
-     */
-    private static Object[] parseArgs(String argsStr, Map<String, Object> placeholders) {
-        List<Object> args = new ArrayList<>();
-        String[] parts = argsStr.trim().split("\\s+");
-
-        for (String part : parts) {
-            // 去除引号
-            if (part.startsWith("\"") && part.endsWith("\"") && part.length() >= 2) {
-                args.add(part.substring(1, part.length() - 1));
-            } else {
-                // 尝试作为变量解析
-                Object value = resolvePath(part, placeholders);
-                args.add(Objects.requireNonNullElse(value, part));
-            }
-        }
-
-        return args.toArray();
-    }
-
-    /**
-     * 处理单花括号格式（兼容）
-     */
-    private static String processSingleBrace(String template, Map<String, Object> placeholders) {
-        StringBuilder result = new StringBuilder();
-        Matcher matcher = SINGLE_BRACE_PATTERN.matcher(template);
-
-        while (matcher.find()) {
-            String placeholder = matcher.group(1).trim();
-            Object value = resolvePath(placeholder, placeholders);
-            if (value != null) {
-                String replacement = TemplateUtils.escapeReplacement(value.toString());
-                matcher.appendReplacement(result, replacement);
-            } else {
-                // 占位符不存在，保留原字符串（包括花括号）
-                matcher.appendReplacement(result, matcher.group());
-            }
-        }
-        matcher.appendTail(result);
-
-        return result.toString();
-    }
-
-    /**
-     * 解析路径，支持嵌套如 user.name
-     */
-    private static Object resolvePath(String path, Map<String, Object> placeholders) {
-        if (path == null || path.isEmpty()) {
-            return null;
-        }
-
-        String[] parts = path.split("\\.");
-        Object current = placeholders;
-
-        for (String part : parts) {
-            if (current == null) {
-                return null;
-            }
-            if (current instanceof Map) {
-                current = ((Map<?, ?>) current).get(part);
-            } else if (current instanceof List) {
-                try {
-                    int index = Integer.parseInt(part);
-                    if (index >= 0 && index < ((List<?>) current).size()) {
-                        current = ((List<?>) current).get(index);
-                    } else {
-                        return null;
-                    }
-                } catch (NumberFormatException e) {
-                    return null;
-                }
-            } else {
-                return null;
-            }
-        }
-
-        return current;
+        RenderContext context = new RenderContext(
+                placeholders == null ? Collections.emptyMap() : placeholders,
+                functions == null ? Collections.emptyMap() : functions
+        );
+        return new TemplateParser(template).parse().render(context);
     }
 
     /**
