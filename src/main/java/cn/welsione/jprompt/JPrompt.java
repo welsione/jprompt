@@ -35,6 +35,9 @@ public class JPrompt<T> {
      *
      * @param data 模板数据，必须是泛型参数 T 指定的类型
      * @return 渲染后的提示词
+     * @apiNote 受泛型擦除限制，当 T 为带泛型参数的类型（如 {@code Map<String, Object>}）
+     *          时，运行时仅检查原始类型（如 {@code Map.class}），子类实例也能通过检查。
+     *          对于简单 POJO 类型不受影响。
      */
     public String build(T data) {
         if (!isTemplate) {
@@ -51,13 +54,13 @@ public class JPrompt<T> {
      * 创建静态提示词（不可变）
      */
     public static JPrompt<Void> get(String path) {
-        return JPromptFactory.INSTANCE.get(path);
+        return JPromptFactory.getInstance().get(path);
     }
 
     /**
      * 创建模板提示词（可变）
      */
     public static <T> JPrompt<T> template(String path, Class<T> dataClass) {
-        return JPromptFactory.INSTANCE.template(path, dataClass);
+        return JPromptFactory.getInstance().template(path, dataClass);
     }
 }

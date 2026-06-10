@@ -34,7 +34,7 @@ class JPromptFactoryTest {
     @Test
     void testCreateStatic() {
         // 静态类型直接返回内容
-        JPrompt<Void> staticTemplate = JPromptFactory.INSTANCE.get("prompts/test_static.md");
+        JPrompt<Void> staticTemplate = JPromptFactory.getInstance().get("prompts/test_static.md");
         assertNotNull(staticTemplate);
         assertNotNull(staticTemplate.get());
     }
@@ -42,7 +42,7 @@ class JPromptFactoryTest {
     @Test
     void testCreateTemplate() {
         // 模板类型返回原始模板
-        JPrompt<TestData> template = JPromptFactory.INSTANCE.template("prompts/test_template.md", TestData.class);
+        JPrompt<TestData> template = JPromptFactory.getInstance().template("prompts/test_template.md", TestData.class);
         assertNotNull(template);
         assertNotNull(template.get());
     }
@@ -50,7 +50,7 @@ class JPromptFactoryTest {
     @Test
     void testTemplateBuild() {
         // 模板类型可以 build
-        JPrompt<TestData> template = JPromptFactory.INSTANCE.template("prompts/test_template.md", TestData.class);
+        JPrompt<TestData> template = JPromptFactory.getInstance().template("prompts/test_template.md", TestData.class);
 
         TestData data = new TestData();
         data.setName("testName");
@@ -63,7 +63,7 @@ class JPromptFactoryTest {
     @Test
     void testStaticTemplateGet() {
         // 静态模板 get() 返回内容
-        JPrompt<Void> staticTemplate = JPromptFactory.INSTANCE.get("prompts/test_static.md");
+        JPrompt<Void> staticTemplate = JPromptFactory.getInstance().get("prompts/test_static.md");
         String content = staticTemplate.get();
         assertNotNull(content);
     }
@@ -71,7 +71,7 @@ class JPromptFactoryTest {
     @Test
     void testStaticTemplateBuildThrows() {
         // 静态模板 build() 应该直接返回内容（不支持 build）
-        JPrompt<Void> staticTemplate = JPromptFactory.INSTANCE.get("prompts/test_static.md");
+        JPrompt<Void> staticTemplate = JPromptFactory.getInstance().get("prompts/test_static.md");
         String result = staticTemplate.build(null);
         assertNotNull(result);
     }
@@ -79,7 +79,7 @@ class JPromptFactoryTest {
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
     void testTemplateBuildRejectsWrongRawType() {
-        JPrompt rawTemplate = JPromptFactory.INSTANCE.template("prompts/test_template.md", TestData.class);
+        JPrompt rawTemplate = JPromptFactory.getInstance().template("prompts/test_template.md", TestData.class);
 
         assertThrows(TemplateException.class, () -> rawTemplate.build(new Object()));
     }
@@ -163,5 +163,66 @@ class JPromptFactoryTest {
                 .build();
 
         assertEquals("Hello, !", factory.template("missing", TestData.class).build(new TestData()));
+    }
+
+    @Test
+    void testMissingVariablePolicyKeepRaw() {
+        JPromptFactory factory = JPromptFactory.builder()
+                .loader(path -> "Hello, {{name}}!")
+                .missingVariablePolicy(MissingVariablePolicy.KEEP_RAW)
+                .build();
+
+        assertEquals("Hello, name!", factory.template("raw", TestData.class).build(new TestData()));
+    }
+
+    @Test
+    void testCacheTtlExpired() throws InterruptedException {
+        AtomicInteger loadCount = new AtomicInteger();
+        JPromptFactory factory = JPromptFactory.builder()
+                .loader(path -> "load-" + loadCount.incrementAndGet())
+                .cacheTtlMillis(50)
+                .build();
+
+        assertEquals("load-1", factory.get("ttl-template").get());
+        // 缓存未过期，应命中
+        assertEquals("load-1", factory.get("ttl-template").get());
+        assertEquals(1, loadCount.get());
+
+        // 等待缓存过期
+        Thread.sleep(60);
+        assertEquals("load-2", factory.get("ttl-template").get());
+        assertEquals(2, loadCount.get());
+    }
+
+    @Test
+    void testCacheTtlNotExpired() {
+        AtomicInteger loadCount = new AtomicInteger();
+        JPromptFactory factory = JPromptFactory.builder()
+                .loader(path -> "load-" + loadCount.incrementAndGet())
+                .cacheTtlMillis(60000)
+                .build();
+
+        assertEquals("load-1", factory.get("ttl-long").get());
+        assertEquals("load-1", factory.get("ttl-long").get());
+        assertEquals(1, loadCount.get());
+    }
+
+    @Test
+    void testCacheTtlZeroMeansNoExpiry() {
+        AtomicInteger loadCount = new AtomicInteger();
+        JPromptFactory factory = JPromptFactory.builder()
+                .loader(path -> "load-" + loadCount.incrementAndGet())
+                .cacheTtlMillis(0)
+                .build();
+
+        assertEquals("load-1", factory.get("no-ttl").get());
+        assertEquals("load-1", factory.get("no-ttl").get());
+        assertEquals(1, loadCount.get());
+    }
+
+    @Test
+    void testCacheTtlNegativeThrows() {
+        assertThrows(IllegalArgumentException.class, () ->
+                JPromptFactory.builder().cacheTtlMillis(-1));
     }
 }

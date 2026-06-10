@@ -3,20 +3,16 @@ package cn.welsione.jprompt.engine;
 import cn.welsione.jprompt.MissingVariablePolicy;
 import cn.welsione.jprompt.TemplateException;
 import cn.welsione.jprompt.util.PlaceholderUtils;
-import cn.welsione.jprompt.util.TemplateUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 基于反射的模板引擎实现 - 增强版
- * 支持：变量插值、条件判断、循环迭代、函数调用、表达式运算、默认值
+ * 基于反射的模板引擎实现。
+ * 支持：变量插值、条件判断、循环迭代、函数调用、表达式运算、默认值。
  */
 @Slf4j
 public class ReflectiveTemplateEngine implements TemplateEngine {
@@ -35,117 +31,7 @@ public class ReflectiveTemplateEngine implements TemplateEngine {
         this.missingVariablePolicy = missingVariablePolicy == null
                 ? MissingVariablePolicy.KEEP_PLACEHOLDER
                 : missingVariablePolicy;
-        registerBuiltInFunctions();
-    }
-
-    /**
-     * 注册内置函数
-     */
-    private void registerBuiltInFunctions() {
-        // 字符串函数
-        registerFunction("upperCase", args -> args.length > 0 && args[0] != null
-                ? args[0].toString().toUpperCase() : "");
-        registerFunction("lowerCase", args -> args.length > 0 && args[0] != null
-                ? args[0].toString().toLowerCase() : "");
-        registerFunction("capitalize", args -> args.length > 0 && args[0] != null
-                ? capitalize(args[0].toString()) : "");
-        registerFunction("trim", args -> args.length > 0 && args[0] != null
-                ? args[0].toString().trim() : "");
-
-        // 集合函数
-        registerFunction("length", args -> {
-            if (args.length > 0 && args[0] != null) {
-                Object arg = args[0];
-                if (arg instanceof Collection) {
-                    return String.valueOf(((Collection<?>) arg).size());
-                } else if (arg instanceof Map) {
-                    return String.valueOf(((Map<?, ?>) arg).size());
-                } else if (arg instanceof String) {
-                    return String.valueOf(((String) arg).length());
-                } else if (arg.getClass().isArray()) {
-                    return String.valueOf(java.lang.reflect.Array.getLength(arg));
-                }
-            }
-            return "0";
-        });
-
-        registerFunction("join", args -> {
-            if (args.length > 0 && args[0] instanceof Collection) {
-                String separator = args.length > 1 ? args[1].toString() : ",";
-                Collection<?> collection = (Collection<?>) args[0];
-                return String.join(separator, collection.stream()
-                    .map(Object::toString)
-                    .toArray(String[]::new));
-            }
-            return args.length > 0 ? args[0].toString() : "";
-        });
-
-        // 日期函数
-        registerFunction("formatDate", args -> {
-            if (args.length > 0 && args[0] != null) {
-                String pattern = args.length > 1 ? args[1].toString() : "yyyy-MM-dd";
-                try {
-                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern);
-                    if (args[0] instanceof LocalDateTime) {
-                        return ((LocalDateTime) args[0]).format(formatter);
-                    } else if (args[0] instanceof LocalDate) {
-                        return ((LocalDate) args[0]).format(formatter);
-                    } else if (args[0] instanceof java.util.Date) {
-                        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat(pattern);
-                        return sdf.format((java.util.Date) args[0]);
-                    }
-                } catch (Exception e) {
-                    return args[0].toString();
-                }
-            }
-            return "";
-        });
-
-        // 逻辑函数
-        registerFunction("ternary", args -> args.length >= 3
-                ? (TemplateUtils.isTruthy(args[0]) ? args[1] : args[2]).toString()
-                : "");
-        registerFunction("default", args -> args.length > 0
-                ? (TemplateUtils.isTruthy(args[0]) ? args[0] : args.length > 1 ? args[1] : "").toString()
-                : "");
-
-        // 数学函数
-        registerFunction("max", args -> {
-            if (args.length >= 2) {
-                double[] nums = new double[args.length];
-                for (int i = 0; i < args.length; i++) {
-                    nums[i] = toDouble(args[i]);
-                }
-                return String.valueOf((int) Math.max(nums[0], nums[1]));
-            }
-            return "0";
-        });
-        registerFunction("min", args -> {
-            if (args.length >= 2) {
-                double[] nums = new double[args.length];
-                for (int i = 0; i < args.length; i++) {
-                    nums[i] = toDouble(args[i]);
-                }
-                return String.valueOf((int) Math.min(nums[0], nums[1]));
-            }
-            return "0";
-        });
-    }
-
-    private double toDouble(Object obj) {
-        if (obj instanceof Number) {
-            return ((Number) obj).doubleValue();
-        }
-        try {
-            return Double.parseDouble(obj.toString());
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    private String capitalize(String str) {
-        if (str == null || str.isEmpty()) return str;
-        return str.substring(0, 1).toUpperCase() + str.substring(1);
+        BuiltinFunctions.registerAll(this);
     }
 
     @Override
@@ -158,10 +44,7 @@ public class ReflectiveTemplateEngine implements TemplateEngine {
         }
 
         try {
-            // 使用 JSON 序列化方式构建嵌套占位符映射
             Map<String, Object> placeholders = buildJsonPlaceholderMap(data);
-
-            // 渲染模板（带函数）
             return PlaceholderUtils.render(template, placeholders, functions, missingVariablePolicy);
         } catch (Exception e) {
             log.error("模板渲染失败: {}", e.getMessage(), e);
@@ -174,9 +57,6 @@ public class ReflectiveTemplateEngine implements TemplateEngine {
         functions.put(name, function);
     }
 
-    /**
-     * 将对象序列化为 Map，用于 JSON 风格的占位符替换
-     */
     @SuppressWarnings("unchecked")
     private Map<String, Object> buildJsonPlaceholderMap(Object data) throws Exception {
         return objectMapper.convertValue(data, Map.class);

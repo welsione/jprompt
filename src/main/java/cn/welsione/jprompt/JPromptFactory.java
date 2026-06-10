@@ -11,15 +11,21 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * JPrompt 工厂类。
+ *
+ * <p>默认实例通过 {@link #getInstance()} 懒加载获取，使用 classpath 加载器、缓存开启、保留缺失占位符策略。
+ * 可通过 {@link #configure()} 在首次使用前替换全局默认配置。
+ * 如需完全独立的配置，请使用 {@link #builder()} 创建新实例。
  */
 public final class JPromptFactory {
 
-    public static final JPromptFactory INSTANCE = JPromptFactory.builder().build();
+    private static volatile JPromptFactory instance;
+    private static final Object INSTANCE_LOCK = new Object();
 
-    private final Map<String, String> templateCache = new ConcurrentHashMap<>();
+    private final Map<String, CacheEntry> templateCache = new ConcurrentHashMap<>();
     private final TemplateEngine engine;
     private final TemplateLoader loader;
     private final boolean cacheEnabled;
+    private final long cacheTtlMillis;
 
     private JPromptFactory(Builder builder) {
         this.engine = builder.engine != null
@@ -27,13 +33,43 @@ public final class JPromptFactory {
                 : new ReflectiveTemplateEngine(builder.missingVariablePolicy);
         this.loader = builder.loader;
         this.cacheEnabled = builder.cacheEnabled;
+        this.cacheTtlMillis = builder.cacheTtlMillis;
+    }
+
+    /**
+     * 获取全局默认实例（懒加载）。
+     */
+    public static JPromptFactory getInstance() {
+        if (instance == null) {
+            synchronized (INSTANCE_LOCK) {
+                if (instance == null) {
+                    instance = builder().build();
+                }
+            }
+        }
+        return instance;
+    }
+
+    /**
+     * 创建全局配置构建器，用于替换默认实例。
+     *
+     * <p>必须在首次调用 {@link #getINSTANCE()} 之前调用，否则抛出异常。
+     *
+     * @return Builder 实例
+     * @throws IllegalStateException 如果全局实例已初始化
+     */
+    public static Builder configure() {
+        if (instance != null) {
+            throw new IllegalStateException("全局实例已初始化，无法重新配置。请使用 JPromptFactory.builder() 创建独立实例。");
+        }
+        return new Builder(true);
     }
 
     /**
      * 创建工厂构建器。
      */
     public static Builder builder() {
-        return new Builder();
+        return new Builder(false);
     }
 
     /**
@@ -87,7 +123,31 @@ public final class JPromptFactory {
         if (!cacheEnabled) {
             return loader.load(path);
         }
-        return templateCache.computeIfAbsent(path, loader::load);
+        if (cacheTtlMillis > 0) {
+            CacheEntry entry = templateCache.computeIfAbsent(path, p -> new CacheEntry(loader.load(p)));
+            if (entry.isExpired(cacheTtlMillis)) {
+                String content = loader.load(path);
+                templateCache.put(path, new CacheEntry(content));
+                return content;
+            }
+            return entry.content;
+        }
+        CacheEntry entry = templateCache.computeIfAbsent(path, p -> new CacheEntry(loader.load(p)));
+        return entry.content;
+    }
+
+    private static final class CacheEntry {
+        final String content;
+        final long timestamp;
+
+        CacheEntry(String content) {
+            this.content = content;
+            this.timestamp = System.currentTimeMillis();
+        }
+
+        boolean isExpired(long ttlMillis) {
+            return System.currentTimeMillis() - timestamp > ttlMillis;
+        }
     }
 
     public static final class Builder {
@@ -95,9 +155,12 @@ public final class JPromptFactory {
         private TemplateEngine engine;
         private TemplateLoader loader = new ClasspathTemplateLoader();
         private boolean cacheEnabled = true;
+        private long cacheTtlMillis;
         private MissingVariablePolicy missingVariablePolicy = MissingVariablePolicy.KEEP_PLACEHOLDER;
+        private final boolean global;
 
-        private Builder() {
+        private Builder(boolean global) {
+            this.global = global;
         }
 
         public Builder engine(TemplateEngine engine) {
@@ -115,6 +178,20 @@ public final class JPromptFactory {
             return this;
         }
 
+        /**
+         * 设置缓存 TTL（毫秒）。超过此时间的缓存条目将重新加载。
+         *
+         * @param ttlMillis 缓存存活时间，0 表示永不过期（默认）
+         * @return this
+         */
+        public Builder cacheTtlMillis(long ttlMillis) {
+            if (ttlMillis < 0) {
+                throw new IllegalArgumentException("cacheTtlMillis must not be negative");
+            }
+            this.cacheTtlMillis = ttlMillis;
+            return this;
+        }
+
         public Builder missingVariablePolicy(MissingVariablePolicy missingVariablePolicy) {
             this.missingVariablePolicy = Objects.requireNonNull(
                     missingVariablePolicy, "missingVariablePolicy must not be null");
@@ -122,7 +199,16 @@ public final class JPromptFactory {
         }
 
         public JPromptFactory build() {
-            return new JPromptFactory(this);
+            JPromptFactory factory = new JPromptFactory(this);
+            if (global) {
+                synchronized (INSTANCE_LOCK) {
+                    if (instance != null) {
+                        throw new IllegalStateException("全局实例已初始化，无法重新配置。");
+                    }
+                    instance = factory;
+                }
+            }
+            return factory;
         }
     }
 }

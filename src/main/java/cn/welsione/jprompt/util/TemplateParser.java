@@ -2,6 +2,8 @@ package cn.welsione.jprompt.util;
 
 import cn.welsione.jprompt.TemplateException;
 
+import lombok.Value;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -24,7 +26,7 @@ final class TemplateParser {
 
     ParsedTemplate parse() {
         ParseResult result = parseUntil(Set.of());
-        return new ParsedTemplate(result.nodes());
+        return new ParsedTemplate(result.getNodes());
     }
 
     private ParseResult parseUntil(Set<String> endTags) {
@@ -39,21 +41,21 @@ final class TemplateParser {
             cursor = matcher.end();
             ParsedTag parsedTag = ParsedTag.parse(tag);
 
-            if (endTags.contains(parsedTag.name())) {
+            if (endTags.contains(parsedTag.getName())) {
                 return new ParseResult(nodes, parsedTag);
             }
             if (parsedTag.isClose()) {
                 throw new TemplateException("未匹配的闭合标签: {{" + tag + "}}");
             }
-            if ("#else".equals(parsedTag.name())) {
+            if ("#else".equals(parsedTag.getName())) {
                 throw new TemplateException("未匹配的 else 标签");
             }
 
-            switch (parsedTag.name()) {
-                case "#if" -> nodes.add(parseConditional(parsedTag.content(), false));
-                case "#unless" -> nodes.add(parseConditional(parsedTag.content(), true));
-                case "#each" -> nodes.add(parseEach(parsedTag.content()));
-                case "#eq" -> nodes.add(parseEq(parsedTag.content()));
+            switch (parsedTag.getName()) {
+                case "#if" -> nodes.add(parseConditional(parsedTag.getContent(), false));
+                case "#unless" -> nodes.add(parseConditional(parsedTag.getContent(), true));
+                case "#each" -> nodes.add(parseEach(parsedTag.getContent()));
+                case "#eq" -> nodes.add(parseEq(parsedTag.getContent()));
                 default -> nodes.add(new VariableNode(tag));
             }
         }
@@ -72,11 +74,11 @@ final class TemplateParser {
         String endTag = unless ? "/unless" : "/if";
         ParseResult truthy = parseUntil(Set.of("#else", endTag));
         List<TemplateNode> falsyNodes = TemplateNodes.empty();
-        if (truthy.endTag() != null && "#else".equals(truthy.endTag().name())) {
+        if (truthy.getEndTag() != null && "#else".equals(truthy.getEndTag().getName())) {
             ParseResult falsy = parseUntil(Set.of(endTag));
-            falsyNodes = falsy.nodes();
+            falsyNodes = falsy.getNodes();
         }
-        return new ConditionalNode(expression, unless, truthy.nodes(), falsyNodes);
+        return new ConditionalNode(expression, unless, truthy.getNodes(), falsyNodes);
     }
 
     private EachNode parseEach(String expression) {
@@ -88,24 +90,31 @@ final class TemplateParser {
             itemName = aliasMatcher.group(2);
         }
         ParseResult body = parseUntil(Set.of("/each"));
-        return new EachNode(itemsPath, itemName, body.nodes());
+        return new EachNode(itemsPath, itemName, body.getNodes());
     }
 
     private EqNode parseEq(String expression) {
         ParseResult truthy = parseUntil(Set.of("#else", "/eq"));
         List<TemplateNode> falsyNodes = TemplateNodes.empty();
-        if (truthy.endTag() != null && "#else".equals(truthy.endTag().name())) {
+        if (truthy.getEndTag() != null && "#else".equals(truthy.getEndTag().getName())) {
             ParseResult falsy = parseUntil(Set.of("/eq"));
-            falsyNodes = falsy.nodes();
+            falsyNodes = falsy.getNodes();
         }
-        return new EqNode(expression, truthy.nodes(), falsyNodes);
+        return new EqNode(expression, truthy.getNodes(), falsyNodes);
     }
 
-    private record ParseResult(List<TemplateNode> nodes, ParsedTag endTag) {
+    @Value
+    private static class ParseResult {
+        List<TemplateNode> nodes;
+        ParsedTag endTag;
     }
 
-    private record ParsedTag(String name, String content) {
-        private static ParsedTag parse(String raw) {
+    @Value
+    private static class ParsedTag {
+        String name;
+        String content;
+
+        static ParsedTag parse(String raw) {
             if (raw.startsWith("#")) {
                 int spaceIndex = raw.indexOf(' ');
                 if (spaceIndex == -1) {
@@ -119,7 +128,7 @@ final class TemplateParser {
             return new ParsedTag(raw, raw);
         }
 
-        private boolean isClose() {
+        boolean isClose() {
             return name.startsWith("/");
         }
     }

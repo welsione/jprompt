@@ -9,6 +9,8 @@ import java.util.Map;
 /**
  * 占位符工具类
  * 支持：变量插值、条件判断、循环迭代、函数调用、表达式运算、默认值
+ *
+ * <p><b>内部 API，不建议外部直接使用。</b>请通过 {@code JPrompt} / {@code JPromptFactory} / {@code TemplateEngine} 入口调用。
  */
 public final class PlaceholderUtils {
 

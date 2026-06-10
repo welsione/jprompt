@@ -287,7 +287,7 @@ class PlaceholderUtilsTest {
 
         String result = PlaceholderUtils.render(template, placeholders);
 
-        assertEquals("序号：6.0", result);
+        assertEquals("序号：6", result);
     }
 
     @Test

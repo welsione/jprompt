@@ -54,13 +54,18 @@ final class ExpressionEvaluator {
                 double leftNum = ((Number) leftVal).doubleValue();
                 double rightNum = ((Number) rightVal).doubleValue();
 
-                return switch (exprMatcher.group(2)) {
+                double result = switch (exprMatcher.group(2)) {
                     case "+" -> leftNum + rightNum;
                     case "-" -> leftNum - rightNum;
                     case "*" -> leftNum * rightNum;
                     case "/" -> rightNum != 0 ? leftNum / rightNum : 0;
-                    default -> expr;
+                    default -> throw new TemplateException("不支持的表达式运算符: " + exprMatcher.group(2));
                 };
+
+                if (result == Math.floor(result) && !Double.isInfinite(result)) {
+                    return (int) result;
+                }
+                return result;
             }
         }
         return context.resolve(expr);
@@ -94,6 +99,7 @@ final class ExpressionEvaluator {
         MissingVariablePolicy policy = context.missingVariablePolicy();
         return switch (policy) {
             case KEEP_PLACEHOLDER -> "{{" + placeholder + "}}";
+            case KEEP_RAW -> placeholder;
             case EMPTY -> "";
             case THROW -> throw new TemplateException("缺失模板变量: " + placeholder);
         };

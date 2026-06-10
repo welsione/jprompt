@@ -7,10 +7,7 @@ import java.util.Collection;
  */
 public final class TemplateUtils {
 
-    private static final int MAX_NESTING_DEPTH = 10;
-
     private TemplateUtils() {
-        // 工具类，禁止实例化
     }
 
     /**
@@ -39,24 +36,10 @@ public final class TemplateUtils {
     }
 
     /**
-     * 转义 replacement 字符串中的特殊字符（用于 appendReplacement）
-     */
-    public static String escapeReplacement(String value) {
-        return value.replace("\\", "\\\\").replace("$", "\\$");
-    }
-
-    /**
      * 安全转换为字符串（用于直接字符串拼接）
      * null 值返回空字符串
      */
     public static String toStringOrEmpty(Object value) {
         return value != null ? value.toString() : "";
-    }
-
-    /**
-     * 获取最大嵌套深度
-     */
-    public static int getMaxNestingDepth() {
-        return MAX_NESTING_DEPTH;
     }
 }

@@ -1,6 +1,7 @@
 package cn.welsione.jprompt.util;
 
 import cn.welsione.jprompt.TemplateException;
+import lombok.Value;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -14,28 +15,42 @@ interface TemplateNode {
     String render(RenderContext context);
 }
 
-record ParsedTemplate(List<TemplateNode> nodes) {
+@Value
+class ParsedTemplate {
+    List<TemplateNode> nodes;
+
     String render(RenderContext context) {
         return TemplateNodes.render(nodes, context);
     }
 }
 
-record TextNode(String text) implements TemplateNode {
+@Value
+class TextNode implements TemplateNode {
+    String text;
+
     @Override
     public String render(RenderContext context) {
         return text;
     }
 }
 
-record VariableNode(String expression) implements TemplateNode {
+@Value
+class VariableNode implements TemplateNode {
+    String expression;
+
     @Override
     public String render(RenderContext context) {
         return ExpressionEvaluator.renderPlaceholder(expression, context);
     }
 }
 
-record ConditionalNode(String expression, boolean unless, List<TemplateNode> truthyNodes,
-                       List<TemplateNode> falsyNodes) implements TemplateNode {
+@Value
+class ConditionalNode implements TemplateNode {
+    String expression;
+    boolean unless;
+    List<TemplateNode> truthyNodes;
+    List<TemplateNode> falsyNodes;
+
     @Override
     public String render(RenderContext context) {
         boolean result = TemplateUtils.isTruthy(ExpressionEvaluator.evaluate(expression, context));
@@ -44,8 +59,12 @@ record ConditionalNode(String expression, boolean unless, List<TemplateNode> tru
     }
 }
 
-record EqNode(String expression, List<TemplateNode> truthyNodes, List<TemplateNode> falsyNodes)
-        implements TemplateNode {
+@Value
+class EqNode implements TemplateNode {
+    String expression;
+    List<TemplateNode> truthyNodes;
+    List<TemplateNode> falsyNodes;
+
     @Override
     public String render(RenderContext context) {
         List<Object> values = ExpressionEvaluator.parseArgs(expression, context);
@@ -60,7 +79,12 @@ record EqNode(String expression, List<TemplateNode> truthyNodes, List<TemplateNo
     }
 }
 
-record EachNode(String expression, String itemName, List<TemplateNode> nodes) implements TemplateNode {
+@Value
+class EachNode implements TemplateNode {
+    String expression;
+    String itemName;
+    List<TemplateNode> nodes;
+
     @Override
     public String render(RenderContext context) {
         Iterable<?> iterable = toIterable(context.resolve(expression));

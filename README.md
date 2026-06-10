@@ -13,8 +13,9 @@
 - 支持嵌套属性、列表下标、默认值、条件、循环、相等判断
 - 支持内置函数和自定义函数
 - 支持 classpath、文件系统和自定义模板加载器
-- 支持模板缓存开关、清空缓存和单项缓存清理
-- 支持缺失变量策略：保留占位符、输出空字符串或抛异常
+- 支持模板缓存开关、TTL 过期、清空缓存和单项缓存清理
+- 支持缺失变量策略：保留占位符、保留裸变量名、输出空字符串或抛异常
+- 支持全局配置和懒加载默认实例
 - Java 17+，仅依赖 Jackson 和 SLF4J
 
 ## 安装
@@ -185,6 +186,8 @@ String rendered = engine.render("Name: {{wrap name}}", Map.of("name", "Alice"));
 {{remaining - 1}}
 ```
 
+整数运算结果自动格式化为整数（如 `5 + 1` → `6`，而非 `6.0`）。
+
 不支持复合表达式，例如 `{{price * quantity - discount}}`。
 
 ## 数据源
@@ -252,9 +255,39 @@ JPromptFactory factory = JPromptFactory.builder()
 缓存控制：
 
 ```java
-JPromptFactory.INSTANCE.clearCache();
-JPromptFactory.INSTANCE.evictCache("prompts/user.md");
+JPromptFactory factory = JPromptFactory.getInstance();
+factory.clearCache();
+factory.evictCache("prompts/user.md");
 ```
+
+### 缓存 TTL
+
+设置缓存存活时间，过期后自动重新加载模板文件：
+
+```java
+JPromptFactory factory = JPromptFactory.builder()
+    .loader(new FileSystemTemplateLoader(Paths.get("src/main/resources")))
+    .cacheTtlMillis(5000) // 5 秒后过期重新加载
+    .build();
+```
+
+`cacheTtlMillis(0)` 表示永不过期（默认行为）。
+
+## 全局配置
+
+默认实例通过 `JPromptFactory.getInstance()` 懒加载获取。可在首次使用前通过 `configure()` 替换全局配置：
+
+```java
+JPromptFactory factory = JPromptFactory.configure()
+    .loader(new FileSystemTemplateLoader(Paths.get("prompts")))
+    .missingVariablePolicy(MissingVariablePolicy.KEEP_RAW)
+    .cacheTtlMillis(3000)
+    .build();
+
+// 之后 JPrompt.get() / JPrompt.template() 将使用此配置
+```
+
+如需完全独立的配置，使用 `JPromptFactory.builder()` 创建新实例。
 
 ## 缺失变量策略
 
@@ -276,7 +309,8 @@ JPromptFactory factory = JPromptFactory.builder()
 
 | 策略 | 行为 |
 |------|------|
-| `KEEP_PLACEHOLDER` | 保留原始占位符，默认行为 |
+| `KEEP_PLACEHOLDER` | 保留原始占位符 `{{name}}`，默认行为 |
+| `KEEP_RAW` | 仅保留变量名 `name`，适用于 LLM 场景 |
 | `EMPTY` | 输出空字符串 |
 | `THROW` | 抛出 `TemplateException` |
 
@@ -301,12 +335,17 @@ String rendered = template.build(data);
 ### JPromptFactory
 
 ```java
+// 独立实例
 JPromptFactory factory = JPromptFactory.builder()
     .loader(new ClasspathTemplateLoader())
     .engine(new ReflectiveTemplateEngine())
     .missingVariablePolicy(MissingVariablePolicy.KEEP_PLACEHOLDER)
     .cacheEnabled(true)
+    .cacheTtlMillis(0)
     .build();
+
+// 全局默认实例（懒加载）
+JPromptFactory defaultFactory = JPromptFactory.getInstance();
 ```
 
 ### TemplateLoader
@@ -336,7 +375,8 @@ src/main/java/cn/welsione/jprompt/
 ├── TemplateException.java
 ├── engine/
 │   ├── TemplateEngine.java
-│   └── ReflectiveTemplateEngine.java
+│   ├── ReflectiveTemplateEngine.java
+│   └── BuiltinFunctions.java
 ├── loader/
 │   ├── TemplateLoader.java
 │   ├── ClasspathTemplateLoader.java
