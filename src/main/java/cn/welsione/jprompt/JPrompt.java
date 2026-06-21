@@ -63,4 +63,20 @@ public class JPrompt<T> {
     public static <T> JPrompt<T> template(String path, Class<T> dataClass) {
         return JPromptFactory.getInstance().template(path, dataClass);
     }
+
+    /**
+     * 从字符串内容创建模板提示词（可变），不经过文件加载与路径缓存。
+     *
+     * <p>用于运行时从数据库等非 classpath 来源读取模板文本的场景。
+     * 与 {@link #template(String, Class)} 的区别仅在于内容来源：前者从 classpath 文件加载，
+     * 本方法直接使用传入的 {@code content}，渲染行为完全一致。
+     *
+     * @param content   模板文本（含 {@code {{}}} 占位符）
+     * @param dataClass 数据类型
+     * @param <T>       数据类型
+     * @return JPrompt<T> 实例
+     */
+    public static <T> JPrompt<T> templateInline(String content, Class<T> dataClass) {
+        return JPromptFactory.getInstance().templateInline(content, dataClass);
+    }
 }

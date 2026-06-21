@@ -98,6 +98,23 @@ public final class JPromptFactory {
     }
 
     /**
+     * 从字符串内容创建模板提示词（可变），不经过文件加载与路径缓存。
+     *
+     * <p>用于运行时从数据库等非 classpath 来源读取模板文本的场景。
+     * 渲染行为与 {@link #template(String, Class)} 完全一致，仅内容来源不同。
+     *
+     * @param content   模板文本
+     * @param dataClass 数据类型
+     * @param <T>       数据类型
+     * @return JPrompt<T> 实例
+     */
+    public <T> JPrompt<T> templateInline(String content, Class<T> dataClass) {
+        Objects.requireNonNull(content, "content must not be null");
+        Objects.requireNonNull(dataClass, "dataClass must not be null");
+        return new JPrompt<>(content, dataClass, true, engine);
+    }
+
+    /**
      * 获取模板引擎。
      */
     public TemplateEngine getEngine() {
