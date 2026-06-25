@@ -2,8 +2,6 @@
   <img src="assets/logo.svg" alt="jprompt logo" width="460">
 </p>
 
-<h1 align="center">jprompt</h1>
-
 <p align="center">
   A lightweight Java prompt template library for AI Agents and LLM applications.
 </p>

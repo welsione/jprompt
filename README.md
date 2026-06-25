@@ -2,8 +2,6 @@
   <img src="assets/logo.svg" alt="jprompt logo" width="460">
 </p>
 
-<h1 align="center">jprompt</h1>
-
 <p align="center">
   面向 AI Agent 与 LLM 应用的轻量级 Java Prompt Template 库。
 </p>
